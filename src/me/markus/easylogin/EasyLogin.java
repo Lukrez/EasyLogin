@@ -7,6 +7,7 @@ import net.milkbowl.vault.permission.Permission;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
@@ -15,8 +16,10 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
@@ -29,11 +32,21 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	public static Permission permission;
 	public static MySQLDataSource database;
 	private HashMap<String, PlayerInfo> players = new HashMap<String, PlayerInfo>();
+	private HashMap<String, LoginTrial> loginTrials = new HashMap<String, LoginTrial>();
 
 	@Override
 	public void onDisable() {
 		if (database != null)
 			database.close();
+		//set groups of all inloggedinusers and kick them
+		for (PlayerInfo pi : this.players.values()){
+			pi.removeUnloggedinUser();
+			Player player = this.getServer().getPlayerExact(pi.getPlayerName());
+			if (player != null)
+				player.kickPlayer("Server wird gestoppt!");
+			pi.cancelTask();
+			this.players.remove(pi.getPlayerName());
+		}
 		this.getLogger().info("v" + this.getDescription().getVersion() + " disabled.");
 	}
 
@@ -73,11 +86,57 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	@Override
 	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
-		if (command.getName().equalsIgnoreCase("easylogin") && sender.hasPermission("easylogin.reload")) {
+		if (command.getName().equalsIgnoreCase("easylogin") && sender.hasPermission("easylogin.manage")) {
 			if (args[0].equalsIgnoreCase("reload")) {
 				Settings.loadSettings();
 				sender.sendMessage(ChatColor.GREEN + "Config reloaded!");
 				return true;
+			}
+			if (args[0].equalsIgnoreCase("list")) {
+				sender.sendMessage(ChatColor.GREEN + "Spieler mit momentanen Login-Wartezeiten:");
+				for (LoginTrial lt : this.loginTrials.values()){
+					sender.sendMessage(lt.playerName+": "+(int)lt.waitForNextLogin()/1000 + " sec"+ " - "+lt.lastIP);
+				}
+				return true;
+			}
+			
+			if (args[0].equalsIgnoreCase("purge")) {
+				this.loginTrials.clear();
+				sender.sendMessage(ChatColor.GREEN + "Einlogdaten gelöscht!");
+				return true;
+			}
+			
+
+			if (args[0].equalsIgnoreCase("show")) {
+				if (args.length < 2){
+					sender.sendMessage(ChatColor.RED + "Bitte einen Spielernamen angeben!");
+					return true;
+				}
+				String name = args[1];
+				LoginTrial lt = this.loginTrials.get(name);
+				if (lt == null){
+					sender.sendMessage(ChatColor.RED + "Für diesen Spieler existiert momentan keine Loginbeschränkung!");
+					return true;
+				}
+				sender.sendMessage(lt.playerName+": "+(int)lt.waitForNextLogin()/1000 + " sec"+ " - "+lt.lastIP);
+				return true;
+
+			}
+			
+			if (args[0].equalsIgnoreCase("pardon")) {
+				if (args.length < 2){
+					sender.sendMessage(ChatColor.RED + "Bitte einen Spielernamen angeben!");
+					return true;
+				}
+				String name = args[1];
+				LoginTrial lt = this.loginTrials.remove(name);
+				if (lt == null){
+					sender.sendMessage(ChatColor.RED + "Für diesen Spieler existiert momentan keine Loginbeschränkung!");
+					return true;
+				}
+				sender.sendMessage(ChatColor.GREEN + "Loginbeschränkung gelöscht!");
+				return true;
+
 			}
 			return false;
 		}
@@ -103,7 +162,13 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			try {
 				if (!pi.checkPassword(args[0])) {
 					player.kickPlayer(ChatColor.RED + "Falsches Passwort!");
-					// TODO: punishment?
+					LoginTrial lt = loginTrials.get(player.getName());
+					if (lt == null){
+						lt = new LoginTrial(player.getName());
+						this.loginTrials.put(player.getName(), lt);
+					}
+					lt.addMissedLogin(player.getAddress().getHostName());
+					
 					return true;
 				}
 			} catch (NoSuchAlgorithmException e) {
@@ -114,7 +179,13 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			if (pi.removeUnloggedinUser()) {
 				player.sendMessage(ChatColor.GREEN + "Login erfolgreich.");
 				pi.cancelTask();
+				
+				// remove possible loginTrials
+				 this.loginTrials.remove(player.getName());
+				
 				Bukkit.getServer().getPluginManager().callEvent(new LoginEvent(player, true));
+				
+				
 			} else {
 				player.sendMessage(ChatColor.RED + "Ein Fehler beim Verschieben in deine alte Gruppe ist aufgetreten. Bitte kontaktiere ein Staffmitglied!");
 			}
@@ -143,9 +214,48 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 		return false;
 	}
+	
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onPlayerLogin(AsyncPlayerPreLoginEvent event) { // Search for Kick reasons
+		String playerName = event.getName();
+
+		int min = Settings.getMinNickLength;
+	    int max = Settings.getMaxNickLength;
+	    String regex = Settings.getNickRegex;
+
+        if (playerName.length() > max || playerName.length() < min) {
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Dein Minecraftname muss zwischen"+min+" und "+max+" Zeichen lang sein!");
+            return;
+        }
+        
+        if (!playerName.matches(regex) || playerName.equals("Player")) {
+        	event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Dein Minecraftname enthält nicht erlaubte Sonderzeichen!");
+            return;
+        }
+        
+        // Anti-Spambot
+        if (Settings.getMaxUnloggedinUsers > 0  && this.players.size() > Settings.getMaxUnloggedinUsers){
+        	// Nur unregistrierte?
+        	PlayerAuth playerAuth = database.getAuth(playerName.toLowerCase());
+        	if (playerAuth == null) {
+        		event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Bitte registriere dich auf www.minecraft-spielewiese.de. Bis gleich :-)");
+        		return;
+        	}
+        }
+        
+        // Logintrials
+        LoginTrial lt = this.loginTrials.get(playerName);
+        if (lt != null){
+        	long time = lt.waitForNextLogin();
+        	if (time > 0){
+        		event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Bitte warte " + (int)time/1000 + " Sekunden bis zu deinem nächsten Login!");
+        		return;
+        	}
+        }
+	}
 
 	@EventHandler(priority = EventPriority.HIGHEST)
-	public void onPlayerLogin(PlayerJoinEvent event) {
+	public void onPlayerJoin(PlayerJoinEvent event) {
 		Player player = event.getPlayer();
 		if (player.isOp()){
 			player.setOp(false);
@@ -195,6 +305,17 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		}
 		this.players.remove(player.getName());
 
+	}
+	
+	@EventHandler
+	public void onPlayerKick(PlayerKickEvent event) {
+		Player player = event.getPlayer();
+		PlayerInfo pi = this.players.get(player.getName());
+		if (pi != null) {
+			pi.removeUnloggedinUser();
+			pi.cancelTask();
+		}
+		this.players.remove(player.getName());
 	}
 
 	/*private void sendDelayedMessage(final String playerName, final String message){
