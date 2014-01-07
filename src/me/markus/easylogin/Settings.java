@@ -22,8 +22,12 @@ public class Settings {
 	public static int getMinNickLength;
 	public static int getMaxNickLength;
 	public static String getNickRegex;
-	public static int getMaxUnloggedinUsers;
 	public static int getWaittimeIncrement;
+	public static int getLoginsPerTenSeconds;
+	public static int getNrAllowedGuests;
+	public static boolean isWhitelisted;
+	public static int getPurgeInterval;
+	public static int getPurgeThreshold;
 
 	public static void loadSettings() {
 
@@ -41,8 +45,12 @@ public class Settings {
 		getMinNickLength = 3;
 		getMaxNickLength = 20;
 		getNickRegex = "[a-zA-Z0-9_?]*";
-		getMaxUnloggedinUsers = 10;
+		getLoginsPerTenSeconds = 20;
 		getWaittimeIncrement = 1;
+		getNrAllowedGuests = 30;
+		getPurgeInterval = 60;
+		getPurgeThreshold = 3;
+		isWhitelisted = false;
 
 		File file = new File(EasyLogin.instance.getDataFolder(), "config.yml");
 		if (!file.exists())
@@ -67,7 +75,14 @@ public class Settings {
 			getNickRegex = yaml.getString("restrictions.allowedChars");
 			getWaittimeIncrement = yaml.getInt("restrictions.waittimeIncrement");
 
-			getMaxUnloggedinUsers = yaml.getInt("antibot.maxUnloggedinUsers");
+			getLoginsPerTenSeconds = yaml.getInt("antibot.loginsPer10Seconds");
+			getNrAllowedGuests = yaml.getInt("antibot.nrAllowedGuests");
+			
+			getPurgeInterval = yaml.getInt("purge.interval");
+			getPurgeThreshold = yaml.getInt("purge.amountOfLogins");
+			
+			isWhitelisted = yaml.getBoolean("whitelist");
+			
 
 			//TODO: whitelist
 
@@ -102,7 +117,13 @@ public class Settings {
 		yaml.set("restrictions.allowedChars", getNickRegex);
 		yaml.set("restrictions.waittimeIncrement", getWaittimeIncrement);
 
-		yaml.set("antibot.maxUnloggedinUsers", getMaxUnloggedinUsers);
+		yaml.set("antibot.loginsPer10Seconds", getLoginsPerTenSeconds);
+		yaml.set("antibot.nrAllowedGuests", getNrAllowedGuests);
+		
+		yaml.set("purge.interval", getPurgeInterval);
+		yaml.set("purge.amountOfLogins", getPurgeThreshold);
+		
+		yaml.set("whitelist", isWhitelisted);
 
 		try {
 			yaml.save(file);

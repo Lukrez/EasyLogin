@@ -1,6 +1,8 @@
 package me.markus.easylogin;
 
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 
 import net.milkbowl.vault.permission.Permission;
@@ -32,6 +34,11 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	public static MySQLDataSource database;
 	private HashMap<String, PlayerInfo> players = new HashMap<String, PlayerInfo>();
 	private HashMap<String, LoginTrial> loginTrials = new HashMap<String, LoginTrial>();
+	private ArrayList<String> guests = new ArrayList<String>();
+	private int nrLogins;;
+	private long lastLoginCycle;
+	private boolean spamBotAttack;
+	private int purgeTaskId = -1;
 
 	@Override
 	public void onDisable() {
@@ -45,6 +52,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				player.kickPlayer("Server wird gestoppt!");
 			pi.cancelTask();
 			this.players.remove(pi.getPlayerName());
+		}
+
+		if (this.purgeTaskId != -1){
+			Bukkit.getScheduler().cancelTask(this.purgeTaskId);
 		}
 		this.getLogger().info("v" + this.getDescription().getVersion() + " disabled.");
 	}
@@ -70,7 +81,17 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				this.getServer().getPluginManager().disablePlugin(this);
 			return;
 		}
-
+		this.nrLogins = 0;
+		this.lastLoginCycle = 0;
+		this.spamBotAttack = false;
+		
+		this.purgeTaskId = this.getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
+			@Override
+			public void run() {
+				purgeLoginList();
+			}
+		}, 60, Settings.getPurgeInterval*1000*60);
+		
 		this.getLogger().info("v" + this.getDescription().getVersion() + " enabled.");
 	}
 
@@ -93,6 +114,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				sender.sendMessage("/easylogin purge - Löscht alle Einlogdateien");
 				sender.sendMessage("/easylogin show <player name> - Zeigt an ob der angebene User eine Loginbeschränkung hat");
 				sender.sendMessage("/easylogin pardon <player name> - Löscht die Loginbeschränkung für den User");
+				sender.sendMessage("/easylogin guestamount <number> - Setzt die Anzahl an möglichen Gästen auf dem Server");
+				sender.sendMessage("/easylogin joins <number> - Anzahl an Logins pro 10 Sekunden, Spambotdetection (0 = Aus)");
+				sender.sendMessage("/easylogin whitelist <ON|OFF> - Toggelt die Whitelist");
+				
 				return true;
 			}
 
@@ -146,8 +171,49 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				return true;
 
 			}
+			
+			if (args[0].equalsIgnoreCase("joins")) {
+				if (args.length < 2) {
+					sender.sendMessage(ChatColor.RED + "Bitte die Anzahl an Einloggversuche pro 10 Sekunden angeben! (0 für AUS)");
+					return true;
+				}
+				int freq = Integer.parseInt(args[1]);
+				if (freq < 0) {
+					sender.sendMessage(ChatColor.RED + "Bitte eine Zahl größer 0 angeben!");
+					return true;
+				}
+				Settings.getLoginsPerTenSeconds = freq;
+				Settings.saveSettings();
+				sender.sendMessage(ChatColor.GREEN + "AntiSpamBot-Schwelle geändert!");
+				return true;
+
+			}
+			
+			if (args[0].equalsIgnoreCase("whitelist")) {
+				if (args.length < 2) {
+					sender.sendMessage(ChatColor.RED + "Bitte [ON|OFF] angeben!");
+					return true;
+				}
+				String status = args[1];
+				if (status.equalsIgnoreCase("on")){
+					Settings.isWhitelisted = true;
+					sender.sendMessage(ChatColor.GREEN + "Server ist im Whitelist-Modus!");
+				} else if (status.equalsIgnoreCase("on")){
+					Settings.isWhitelisted = false;
+					sender.sendMessage(ChatColor.GREEN + "Server ist im Spiel-Modus!");
+				} else {
+					sender.sendMessage(ChatColor.RED + "Bitte [ON|OFF] angeben!");
+					return true;
+				}
+				Settings.saveSettings();
+				return true;
+
+			}
 			return false;
 		}
+		
+		sender.sendMessage("/easylogin joins <number> - Anzahl an Logins pro 10 Sekunden, Spambotdetection (0 = Aus)");
+		sender.sendMessage("/easylogin whitelist <ON|OFF> - Toggelt die Whitelist");
 
 		if (!(sender instanceof Player)) {
 			return true;
@@ -163,7 +229,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			}
 
 			if (args.length == 0) {
-				player.sendMessage(ChatColor.RED + "Bitte logge dich mit /l <password> innherhalb von 30 Sekunden ein.");
+				player.sendMessage(ChatColor.RED + "Bitte logge dich mit /l <password> innerhalb von 30 Sekunden ein.");
 				return true;
 			}
 
@@ -223,6 +289,20 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerLogin(AsyncPlayerPreLoginEvent event) { // Search for Kick reasons
+		
+		// Anti-Spambot
+		// calculate threshold
+		this.nrLogins++;
+		if (Settings.getLoginsPerTenSeconds > 0 && this.nrLogins > Settings.getLoginsPerTenSeconds){
+			this.nrLogins = 0;
+			this.lastLoginCycle = new Date().getTime();
+		}
+		if (Settings.getLoginsPerTenSeconds > 0 && new Date().getTime()-this.lastLoginCycle < 10000){
+			this.spamBotAttack = true;
+		} else {
+			this.spamBotAttack = false;
+		}
+		
 		String playerName = event.getName();
 
 		int min = Settings.getMinNickLength;
@@ -230,7 +310,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		String regex = Settings.getNickRegex;
 
 		if (playerName.length() > max || playerName.length() < min) {
-			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Dein Minecraftname muss zwischen" + min + " und " + max + " Zeichen lang sein!");
+			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Dein Minecraftname muss zwischen " + min + " und " + max + " Zeichen lang sein!");
 			return;
 		}
 
@@ -239,8 +319,14 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			return;
 		}
 
-		// Anti-Spambot
-		if (Settings.getMaxUnloggedinUsers > 0 && this.players.size() > Settings.getMaxUnloggedinUsers) {
+		// Whitelist
+		if (Settings.isWhitelisted && !this.getServer().getWhitelistedPlayers().contains(playerName)){
+			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!");
+			return;
+		}
+		
+		// SpamBot
+		if (this.spamBotAttack || Settings.getNrAllowedGuests > this.guests.size()) {
 			// Nur unregistrierte?
 			PlayerAuth playerAuth = database.getAuth(playerName.toLowerCase());
 			if (playerAuth == null) {
@@ -276,6 +362,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			}
 			// set Guest group
 			permission.playerAddGroup(player, "Guest");
+			this.guests.add(player.getName());
 			player.sendMessage(ChatColor.GREEN + "Willkommen auf dem Minecraft-Spielewiese Server!");
 			return;
 		}
@@ -307,6 +394,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			pi.cancelTask();
 		}
 		this.players.remove(player.getName());
+		this.guests.remove(player.getName());
 
 	}
 
@@ -319,6 +407,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			pi.cancelTask();
 		}
 		this.players.remove(player.getName());
+		this.guests.remove(player.getName());
 	}
 
 	/*private void sendDelayedMessage(final String playerName, final String message){
@@ -351,5 +440,21 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	@EventHandler
 	public void onPlayerDropItem(PlayerDropItemEvent event) {
 		event.setCancelled(this.players.containsKey(event.getPlayer().getName()));
+	}
+	
+	private void purgeLoginList(){
+		this.getServer().getLogger().info("purging login data");
+		long now = new Date().getTime();
+		ArrayList<String> delete = new ArrayList<String>();
+		
+		for (LoginTrial lt : this.loginTrials.values()){
+			if (lt.trialNr > Settings.getPurgeThreshold) continue;
+			if (now-lt.lastLogin.getTime() > Settings.getPurgeInterval*1000*60){
+				delete.add(lt.playerName);
+			}
+		}
+		for (String name : delete){
+			this.loginTrials.remove(name);
+		}
 	}
 }
