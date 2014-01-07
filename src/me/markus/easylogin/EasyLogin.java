@@ -87,12 +87,12 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 		if (command.getName().equalsIgnoreCase("easylogin") && sender.hasPermission("easylogin.manage")) {
 			if (args.length == 0) {
-				sender.sendMessage("Befehle für das Plugin EasyLogin");
-				sender.sendMessage("/easylogin reload - Lädt die Config datei neu");
+				sender.sendMessage("Befehle fÃ¼r das Plugin EasyLogin");
+				sender.sendMessage("/easylogin reload - LÃ¤dt die Config datei neu");
 				sender.sendMessage("/easylogin list - Listet alle Spieler mit momentanen Wartezeiten auf");
-				sender.sendMessage("/easylogin purge - Löscht alle Einlogdateien");
-				sender.sendMessage("/easylogin show <player name> - Zeigt an ob der angebene User eine Loginbeschränkung hat");
-				sender.sendMessage("/easylogin pardon <player name> - Löscht die Loginbeschränkung für den User");
+				sender.sendMessage("/easylogin purge - LÃ¶scht alle Einlogdateien");
+				sender.sendMessage("/easylogin show <player name> - Zeigt an ob der angebene User eine LoginbeschrÃ¤nkung hat");
+				sender.sendMessage("/easylogin pardon <player name> - LÃ¶scht die LoginbeschrÃ¤nkung fÃ¼r den User");
 				return true;
 			}
 
@@ -111,7 +111,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 			if (args[0].equalsIgnoreCase("purge")) {
 				this.loginTrials.clear();
-				sender.sendMessage(ChatColor.GREEN + "Einlogdaten gelöscht!");
+				sender.sendMessage(ChatColor.GREEN + "Einlogdaten gelÃ¶scht!");
 				return true;
 			}
 
@@ -123,7 +123,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				String name = args[1];
 				LoginTrial lt = this.loginTrials.get(name);
 				if (lt == null) {
-					sender.sendMessage(ChatColor.RED + "Für diesen Spieler existiert momentan keine Loginbeschränkung!");
+					sender.sendMessage(ChatColor.RED + "FÃ¼r diesen Spieler existiert momentan keine LoginbeschrÃ¤nkung!");
 					return true;
 				}
 				sender.sendMessage(lt.playerName + ": " + (int) lt.waitForNextLogin() / 1000 + " sec" + " - " + lt.lastIP);
@@ -139,10 +139,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				String name = args[1];
 				LoginTrial lt = this.loginTrials.remove(name);
 				if (lt == null) {
-					sender.sendMessage(ChatColor.RED + "Für diesen Spieler existiert momentan keine Loginbeschränkung!");
+					sender.sendMessage(ChatColor.RED + "FÃ¼r diesen Spieler existiert momentan keine LoginbeschrÃ¤nkung!");
 					return true;
 				}
-				sender.sendMessage(ChatColor.GREEN + "Loginbeschränkung gelöscht!");
+				sender.sendMessage(ChatColor.GREEN + "LoginbeschrÃ¤nkung gelÃ¶scht!");
 				return true;
 
 			}
@@ -180,7 +180,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 					return true;
 				}
 			} catch (NoSuchAlgorithmException e) {
-				player.sendMessage(ChatColor.RED + "Konnte Passwort nicht überprüfen. Wende dich bitte an ein Staffmitglied!");
+				player.sendMessage(ChatColor.RED + "Konnte Passwort nicht Ã¼berprÃ¼en. Wende dich bitte an ein Staffmitglied!");
 				e.printStackTrace();
 			}
 			this.players.remove(player.getName());
@@ -235,7 +235,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		}
 
 		if (!playerName.matches(regex) || playerName.equals("Player")) {
-			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Dein Minecraftname enthält nicht erlaubte Sonderzeichen!");
+			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Dein Minecraftname enthÃ¤lt nicht erlaubte Sonderzeichen!");
 			return;
 		}
 
@@ -254,7 +254,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		if (lt != null) {
 			long time = lt.waitForNextLogin();
 			if (time > 0) {
-				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Bitte warte " + (int) time / 1000 + " Sekunden bis zu deinem nächsten Login!");
+				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Bitte warte " + (int) time / 1000 + " Sekunden bis zu deinem nÃ¤chsten Login!");
 				return;
 			}
 		}
