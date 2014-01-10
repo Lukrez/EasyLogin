@@ -58,6 +58,7 @@ public class Settings {
 		YamlConfiguration yaml = new YamlConfiguration();
 		try {
 			yaml.load(file);
+			
 			getMySQLHost = yaml.getString("Datasource.mySQLHost");
 			getMySQLPort = yaml.getString("Datasource.mySQLPort");
 			getMySQLUsername = yaml.getString("Datasource.mySQLUsername");
@@ -82,9 +83,6 @@ public class Settings {
 			getPurgeThreshold = yaml.getInt("purge.amountOfLogins");
 			
 			isWhitelisted = yaml.getBoolean("whitelist");
-			
-
-			//TODO: whitelist
 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();

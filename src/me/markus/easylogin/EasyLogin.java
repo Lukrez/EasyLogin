@@ -9,6 +9,7 @@ import net.milkbowl.vault.permission.Permission;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
@@ -39,6 +40,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	private long lastLoginCycle;
 	private boolean spamBotAttack;
 	private int purgeTaskId = -1;
+	private long nexPurge;
 
 	@Override
 	public void onDisable() {
@@ -84,14 +86,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		this.nrLogins = 0;
 		this.lastLoginCycle = 0;
 		this.spamBotAttack = false;
+		startPurgeTask();
 		
-		this.purgeTaskId = this.getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
-			@Override
-			public void run() {
-				purgeLoginList();
-			}
-		}, 60, Settings.getPurgeInterval*1000*60);
-		
+
+
 		this.getLogger().info("v" + this.getDescription().getVersion() + " enabled.");
 	}
 
@@ -110,7 +108,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			if (args.length == 0) {
 				sender.sendMessage("Befehle für das Plugin EasyLogin");
 				sender.sendMessage("/easylogin reload - Lädt die Config datei neu");
-				sender.sendMessage("/easylogin list - Listet alle Spieler mit momentanen Wartezeiten auf");
+				sender.sendMessage("/easylogin status - Status des Plugins plus Liste aller Spieler mit momentanen Wartezeiten");
 				sender.sendMessage("/easylogin purge - Löscht alle Einlogdateien");
 				sender.sendMessage("/easylogin show <player name> - Zeigt an ob der angebene User eine Loginbeschränkung hat");
 				sender.sendMessage("/easylogin pardon <player name> - Löscht die Loginbeschränkung für den User");
@@ -123,13 +121,34 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 			if (args[0].equalsIgnoreCase("reload")) {
 				Settings.loadSettings();
+				startPurgeTask();
 				sender.sendMessage(ChatColor.GREEN + "Config reloaded!");
 				return true;
 			}
-			if (args[0].equalsIgnoreCase("list")) {
-				sender.sendMessage(ChatColor.GREEN + "Spieler mit momentanen Login-Wartezeiten:");
+			if (args[0].equalsIgnoreCase("status")) {
+				if (Settings.isWhitelisted){
+					sender.sendMessage(ChatColor.GRAY+"Whitelisted: "+ChatColor.RED+"JA");
+				} else {
+					sender.sendMessage(ChatColor.GRAY+"Whitelisted: "+ChatColor.GREEN+"NEIN");
+				}
+				sender.sendMessage(ChatColor.GRAY+"Anzahl an Gästen: "+ChatColor.WHITE+this.guests.size());
+				sender.sendMessage(ChatColor.GRAY+"Anzahl an UnloggedinUsers: "+ChatColor.WHITE+this.players.size());
+				sender.sendMessage(ChatColor.GRAY+"Nächster Loginpurge in: "+ChatColor.WHITE+(this.nexPurge - new Date().getTime())/1000/60 + "  min");
+				if (this.spamBotAttack){
+					sender.sendMessage(ChatColor.GRAY+"Spambot-Attacke: "+ChatColor.RED+"JA");
+				} else {
+					sender.sendMessage(ChatColor.GRAY+"Spambot-Attacke: "+ChatColor.GREEN+"NEIN");
+				}
+				double waittime = (new Date().getTime()-this.lastLoginCycle)/1000;
+				if (waittime > 0){
+					sender.sendMessage(ChatColor.GRAY+"Loginfrequenz: "+ChatColor.WHITE+this.nrLogins/waittime);
+				} else {
+					sender.sendMessage(ChatColor.GRAY+"Loginfrequenz: "+ChatColor.WHITE+"??");
+				}
+				
+				sender.sendMessage(ChatColor.GRAY + "Spieler mit momentanen Login-Wartezeiten:");
 				for (LoginTrial lt : this.loginTrials.values()) {
-					sender.sendMessage(lt.playerName + ": " + (int) lt.waitForNextLogin() / 1000 + " sec" + " - " + lt.lastIP);
+					sender.sendMessage(lt.playerName + " Wartezeit: " + (int) lt.waitForNextLogin() / 1000 + " sec" + " IP: " + lt.lastIP);
 				}
 				return true;
 			}
@@ -151,7 +170,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 					sender.sendMessage(ChatColor.RED + "Für diesen Spieler existiert momentan keine Loginbeschränkung!");
 					return true;
 				}
-				sender.sendMessage(lt.playerName + ": " + (int) lt.waitForNextLogin() / 1000 + " sec" + " - " + lt.lastIP);
+				sender.sendMessage(lt.playerName + " Wartezeit: " + (int) lt.waitForNextLogin() / 1000 + " sec" + " IP: " + lt.lastIP);
 				return true;
 
 			}
@@ -198,7 +217,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				if (status.equalsIgnoreCase("on")){
 					Settings.isWhitelisted = true;
 					sender.sendMessage(ChatColor.GREEN + "Server ist im Whitelist-Modus!");
-				} else if (status.equalsIgnoreCase("on")){
+				} else if (status.equalsIgnoreCase("off")){
 					Settings.isWhitelisted = false;
 					sender.sendMessage(ChatColor.GREEN + "Server ist im Spiel-Modus!");
 				} else {
@@ -211,9 +230,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			}
 			return false;
 		}
-		
-		sender.sendMessage("/easylogin joins <number> - Anzahl an Logins pro 10 Sekunden, Spambotdetection (0 = Aus)");
-		sender.sendMessage("/easylogin whitelist <ON|OFF> - Toggelt die Whitelist");
 
 		if (!(sender instanceof Player)) {
 			return true;
@@ -224,7 +240,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		if (command.getName().equalsIgnoreCase("login")) {
 			PlayerInfo pi = this.players.get(player.getName());
 			if (pi == null) {
-				player.sendMessage(ChatColor.GREEN + "Du bist bereits eingeloggt oder Gast auf dem Server.");
+				player.sendMessage(ChatColor.GREEN + "Du bist bereits eingeloggt oder Gast auf dem Server. Wenn du dich soeben registriert hast starte Minecraft enimal neu!");
 				return true;
 			}
 
@@ -241,12 +257,13 @@ public class EasyLogin extends JavaPlugin implements Listener {
 						lt = new LoginTrial(player.getName());
 						this.loginTrials.put(player.getName(), lt);
 					}
-					lt.addMissedLogin(player.getAddress().getHostName());
+					//lt.addMissedLogin(player.getAddress().);
+					lt.addMissedLogin(player.getAddress().toString());
 
 					return true;
 				}
 			} catch (NoSuchAlgorithmException e) {
-				player.sendMessage(ChatColor.RED + "Konnte Passwort nicht überprüen. Wende dich bitte an ein Staffmitglied!");
+				player.sendMessage(ChatColor.RED + "Konnte Passwort nicht überprüfen. Wende dich bitte an ein Staffmitglied!");
 				e.printStackTrace();
 			}
 			this.players.remove(player.getName());
@@ -320,7 +337,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		}
 
 		// Whitelist
-		if (Settings.isWhitelisted && !this.getServer().getWhitelistedPlayers().contains(playerName)){
+		if (Settings.isWhitelisted && !isInWhitelist(playerName)){
 			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!");
 			return;
 		}
@@ -382,7 +399,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		// c) Registered -> UnloggedinUsers -> After Login in old groups
 		PlayerInfo pi = new PlayerInfo(player.getName(), playerAuth); // TODO: Already logged in?
 		this.players.put(player.getName(), pi);
-		player.sendMessage(ChatColor.RED + "Bitte logge dich mit /l <password> innherhalb von 30 Sekunden ein.");
+		player.sendMessage(ChatColor.RED + "Bitte logge dich mit /l <password> innerhalb von 30 Sekunden ein.");
 	}
 
 	@EventHandler
@@ -442,6 +459,25 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		event.setCancelled(this.players.containsKey(event.getPlayer().getName()));
 	}
 	
+	private void startPurgeTask(){
+		if (this.purgeTaskId != -1){
+			Bukkit.getScheduler().cancelTask(this.purgeTaskId);
+		}
+		if (Settings.getPurgeInterval > 0){
+			
+			this.purgeTaskId = this.getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
+				@Override
+				public void run() {
+					purgeLoginList();
+					nexPurge = new Date().getTime()+Settings.getPurgeInterval*60*1000;
+				}
+			}, 60, Settings.getPurgeInterval*20*60);
+			this.getLogger().info("Purgetask started. Purgefrequency set to " + Settings.getPurgeInterval + " min.");
+		} else {
+			this.getLogger().info("Purgeinterval is 0 min, no Purgetask started!");
+		}
+	}
+	
 	private void purgeLoginList(){
 		this.getServer().getLogger().info("purging login data");
 		long now = new Date().getTime();
@@ -449,12 +485,21 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		
 		for (LoginTrial lt : this.loginTrials.values()){
 			if (lt.trialNr > Settings.getPurgeThreshold) continue;
-			if (now-lt.lastLogin.getTime() > Settings.getPurgeInterval*1000*60){
+			if (now-lt.lastLogin.getTime() > Settings.getPurgeInterval*20*60){
 				delete.add(lt.playerName);
 			}
 		}
 		for (String name : delete){
 			this.loginTrials.remove(name);
 		}
+	}
+	
+	private boolean isInWhitelist(String playername){
+		
+		for (OfflinePlayer player : this.getServer().getWhitelistedPlayers()){
+			if (player.getName().equalsIgnoreCase(playername))
+					return true;
+		}
+		return false;
 	}
 }
