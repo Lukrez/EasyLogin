@@ -24,13 +24,12 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class EasyLogin extends JavaPlugin implements Listener {
 
-	public static Plugin instance;
+	public static EasyLogin instance;
 	public static Permission permission;
 	public static MySQLDataSource database;
 	private HashMap<String, PlayerInfo> players = new HashMap<String, PlayerInfo>();
@@ -250,14 +249,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			try {
 				if (!pi.checkPassword(args[0])) {
 					player.kickPlayer(ChatColor.RED + "Falsches Passwort!");
-					LoginTrial lt = loginTrials.get(player.getName());
-					if (lt == null) {
-						lt = new LoginTrial(player.getName());
-						this.loginTrials.put(player.getName(), lt);
-					}
-					//lt.addMissedLogin(player.getAddress().);
-					lt.addMissedLogin(player.getAddress().toString());
-
 					return true;
 				}
 			} catch (NoSuchAlgorithmException e) {
@@ -279,25 +270,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 			return true;
 		}
-
-		/*if (command.getName().equalsIgnoreCase("register")) {
-			String password = args[0];
-			String salt = "HelloWorld";
-			PlayerInfo pi = new PlayerInfo();
-			String passwordHash = "";
-			try {
-				passwordHash = pi.getHash(password, salt);
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-				return true;
-			}
-			try {
-				database.registerUser(player.getName(), passwordHash, salt);
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-			player.sendMessage("Erfolgreich registriert!");
-		}*/
 
 		return false;
 	}
@@ -333,6 +305,12 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Dein Minecraftname enthält nicht erlaubte Sonderzeichen!");
 			return;
 		}
+		
+		if (isAlreadyLoggedIn(playerName))
+	    {
+	      event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Ein Spieler mit diesem Namen ist bereits eingeloggt!");
+	      return;
+	    }
 
 		// Whitelist
 		if (Settings.isWhitelisted && !isInWhitelist(playerName)) {
@@ -341,7 +319,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		}
 
 		// SpamBot
-		if (this.spamBotAttack || Settings.getNrAllowedGuests > this.guests.size()) {
+		if (this.spamBotAttack || Settings.getNrAllowedGuests < this.guests.size()) {
 			// Nur unregistrierte?
 			PlayerAuth playerAuth = database.getAuth(playerName.toLowerCase());
 			if (playerAuth == null) {
@@ -390,13 +368,20 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 		}
 		if (isNewTraveller) {
-			permission.playerRemoveGroup(player, "Guest");
-			permission.playerAddGroup(player, "Traveller");
+		      permission.playerAddGroup("", player.getName(), "Traveller"); // New pex system
+		      permission.playerRemoveGroup("", player.getName(), "Guest");
 		}
 
 		// c) Registered -> UnloggedinUsers -> After Login in old groups
-		PlayerInfo pi = new PlayerInfo(player.getName(), playerAuth); // TODO: Already logged in?
+		PlayerInfo pi = new PlayerInfo(player.getName(), playerAuth, player.getLocation()); // TODO: Already logged in?
 		this.players.put(player.getName(), pi);
+		LoginTrial lt = (LoginTrial)this.loginTrials.get(player.getName());
+	    if (lt == null)
+	    {
+	      lt = new LoginTrial(player.getName());
+	      this.loginTrials.put(player.getName(), lt);
+	    }
+	    lt.addLogin(player.getAddress().toString());
 		player.sendMessage(ChatColor.RED + "Bitte logge dich mit /l <password> innerhalb von 30 Sekunden ein.");
 	}
 
@@ -407,6 +392,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		if (pi != null) {
 			pi.removeUnloggedinUser();
 			pi.cancelTask();
+			player.teleport(pi.getLocation());
 		}
 		this.players.remove(player.getName());
 		this.guests.remove(player.getName());
@@ -420,23 +406,11 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		if (pi != null) {
 			pi.removeUnloggedinUser();
 			pi.cancelTask();
+			player.teleport(pi.getLocation());
 		}
 		this.players.remove(player.getName());
 		this.guests.remove(player.getName());
 	}
-
-	/*private void sendDelayedMessage(final String playerName, final String message){
-		this.getServer().getScheduler()
-		.scheduleSyncDelayedTask(this, new BukkitRunnable() {
-
-			@Override
-			public void run() {
-				Player player = Bukkit.getPlayerExact(playerName);
-				if (player != null)
-				player.sendMessage(message);
-			}
-		}, 20);
-	}*/
 
 	@EventHandler
 	public void onInventoryClick(InventoryClickEvent event) {
@@ -501,4 +475,14 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		}
 		return false;
 	}
+	  
+	  private boolean isAlreadyLoggedIn(String playername)
+	  {
+	    for (Player player : getServer().getOnlinePlayers()) {
+	      if (player.getName().equalsIgnoreCase(playername)) {
+	        return true;
+	      }
+	    }
+	    return false;
+	  }
 }

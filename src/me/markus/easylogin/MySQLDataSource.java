@@ -85,7 +85,6 @@ public class MySQLDataSource {
 			pst.setString(1, user);
 			rs = pst.executeQuery();
 			if (rs.next()) {
-				//return new PlayerAuth(rs.getString(columnName), rs.getString(columnPassword),rs.getString(columnSalt), rs.getString(columnIp));
 				return new PlayerAuth(rs.getString(columnName), rs.getString(columnPassword), rs.getString(columnSalt), "");
 			} else {
 				return null;

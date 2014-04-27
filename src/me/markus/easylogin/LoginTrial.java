@@ -23,7 +23,7 @@ public class LoginTrial {
 		return lastLogin.getTime() + Settings.getWaittimeIncrement * 1000 * (int) Math.pow(2, trialNr) - now.getTime();
 	}
 
-	public void addMissedLogin(String lastIP) {
+	public void addLogin(String lastIP) {
 		this.trialNr++;
 		this.lastLogin = new Date();
 		this.lastIP = lastIP;

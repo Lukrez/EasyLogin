@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 public class PlayerInfo {
@@ -13,8 +14,9 @@ public class PlayerInfo {
 	private int taskId;
 	private String[] groups;
 	private PlayerAuth playerAuth;
+	private Location location;
 
-	public PlayerInfo(String playerName, PlayerAuth playerAuth) {
+	public PlayerInfo(String playerName, PlayerAuth playerAuth, Location location) {
 		this.playerName = playerName;
 		this.playerAuth = playerAuth;
 		this.groups = new String[0];
@@ -37,9 +39,9 @@ public class PlayerInfo {
 		this.groups = EasyLogin.permission.getPlayerGroups(player);
 		// remove old groups
 		for (String group : this.groups) {
-			EasyLogin.permission.playerRemoveGroup(player, group);
+			 EasyLogin.permission.playerRemoveGroup("", player.getName(), group);
 		}
-		EasyLogin.permission.playerAddGroup(player, "UnloggedinUser");
+		 EasyLogin.permission.playerAddGroup("", player.getName(), "UnloggedinUser");
 		return true;
 	}
 
@@ -47,9 +49,9 @@ public class PlayerInfo {
 		Player player = Bukkit.getPlayerExact(this.playerName);
 		if (player == null)
 			return false;
-		EasyLogin.permission.playerRemoveGroup(player, "UnloggedinUser");
+		EasyLogin.permission.playerRemoveGroup("", player.getName(), "UnloggedinUser");
 		for (int i = this.groups.length - 1; i >= 0; i--) {
-			EasyLogin.permission.playerAddGroup(player, this.groups[i]);
+			EasyLogin.permission.playerAddGroup("", player.getName(), this.groups[i]);
 		}
 		return true;
 	}
@@ -64,6 +66,10 @@ public class PlayerInfo {
 
 	public String getPlayerName() {
 		return this.playerName;
+	}
+	
+	public Location getLocation(){
+	    return this.location;
 	}
 
 	public String getHash(String password, String salt) throws NoSuchAlgorithmException {
