@@ -1,6 +1,5 @@
 package me.markus.easylogin;
 
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -40,6 +39,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	private boolean spamBotAttack;
 	private int purgeTaskId = -1;
 	private long nexPurge;
+	private String whitelistReason = "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!";
 
 	@Override
 	public void onDisable() {
@@ -111,7 +111,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				sender.sendMessage("/easylogin pardon <player name> - Löscht die Loginbeschränkung für den User");
 				sender.sendMessage("/easylogin guestamount <number> - Setzt die Anzahl an möglichen Gästen auf dem Server");
 				sender.sendMessage("/easylogin joins <number> - Anzahl an Logins pro 10 Sekunden, Spambotdetection (0 = Aus)");
-				sender.sendMessage("/easylogin whitelist <ON|OFF> - Toggelt die Whitelist");
+				sender.sendMessage("/easylogin whitelist <ON|OFF> [reason for whitelist]- Toggelt die Whitelist");
 
 				return true;
 			}
@@ -212,6 +212,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				}
 				String status = args[1];
 				if (status.equalsIgnoreCase("on")) {
+					this.whitelistReason = "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!";
+					if (args.length > 2){
+						this.whitelistReason = args[2];
+					}
 					Settings.isWhitelisted = true;
 					sender.sendMessage(ChatColor.GREEN + "Server ist im Whitelist-Modus!");
 				} else if (status.equalsIgnoreCase("off")) {
@@ -237,7 +241,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		if (command.getName().equalsIgnoreCase("login")) {
 			PlayerInfo pi = this.players.get(player.getName());
 			if (pi == null) {
-				player.sendMessage(ChatColor.GREEN + "Du bist bereits eingeloggt oder Gast auf dem Server. Wenn du dich soeben registriert hast starte Minecraft enimal neu!");
+				player.sendMessage(ChatColor.GREEN + "Du bist bereits eingeloggt oder Gast auf dem Server. Wenn du dich soeben registriert hast starte Minecraft einmal neu!");
 				return true;
 			}
 
@@ -246,18 +250,16 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				return true;
 			}
 
-			try {
-				if (!pi.checkPassword(args[0])) {
-					player.kickPlayer(ChatColor.RED + "Falsches Passwort!");
-					return true;
-				}
-			} catch (NoSuchAlgorithmException e) {
-				player.sendMessage(ChatColor.RED + "Konnte Passwort nicht überprüfen. Wende dich bitte an ein Staffmitglied!");
-				e.printStackTrace();
+			if (!pi.checkPassword(args[0])) {
+				player.kickPlayer(ChatColor.RED + "Falsches Passwort!");
+				this.getLogger().info("Spieler "+ player.getName() + " hat ein falsches Passwort eingegeben!");
+				return true;
 			}
+
 			this.players.remove(player.getName());
 			if (pi.removeUnloggedinUser()) {
 				player.sendMessage(ChatColor.GREEN + "Login erfolgreich.");
+				this.getLogger().info("Spieler "+ player.getName() + " hat sich erfolgreich eingeloggt!");
 				pi.cancelTask();
 
 				// remove possible loginTrials
@@ -284,7 +286,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			this.nrLogins = 0;
 			this.lastLoginCycle = new Date().getTime();
 		}
-		if (Settings.getLoginsPerTenSeconds > 0 && new Date().getTime() - this.lastLoginCycle < 10000) {
+		if (Settings.getLoginsPerTenSeconds > 0 && new Date().getTime() - this.lastLoginCycle < 10000) { // TODO: logins > 0 ??
 			this.spamBotAttack = true;
 		} else {
 			this.spamBotAttack = false;
@@ -314,7 +316,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 		// Whitelist
 		if (Settings.isWhitelisted && !isInWhitelist(playerName)) {
-			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!");
+			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, this.whitelistReason);
 			return;
 		}
 

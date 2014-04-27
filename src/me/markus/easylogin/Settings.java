@@ -18,7 +18,6 @@ public class Settings {
 	public static boolean isStopEnabled;
 	public static String getMySQLColumnName;
 	public static String getMySQLColumnPassword;
-	public static String getMySQLColumnSalt;
 	public static int getMinNickLength;
 	public static int getMaxNickLength;
 	public static String getNickRegex;
@@ -41,7 +40,6 @@ public class Settings {
 		isStopEnabled = true;
 		getMySQLColumnName = "username";
 		getMySQLColumnPassword = "password";
-		getMySQLColumnSalt = "salt";
 		getMinNickLength = 3;
 		getMaxNickLength = 20;
 		getNickRegex = "[a-zA-Z0-9_?]*";
@@ -67,7 +65,6 @@ public class Settings {
 			getMySQLPassword = yaml.getString("Datasource.mySQLPassword");
 			getMySQLColumnName = yaml.getString("Datasource.mySQLColumnName");
 			getMySQLColumnPassword = yaml.getString("Datasource.mySQLColumnPassword");
-			getMySQLColumnSalt = yaml.getString("Datasource.mySQLColumnSalt");
 
 			isStopEnabled = yaml.getBoolean("Security.SQLProblem.stopServer");
 
@@ -106,7 +103,6 @@ public class Settings {
 		yaml.set("Datasource.mySQLDatabase", getMySQLDatabase);
 		yaml.set("Datasource.mySQLColumnName", getMySQLColumnName);
 		yaml.set("Datasource.mySQLColumnPassword", getMySQLColumnPassword);
-		yaml.set("Datasource.mySQLColumnSalt", getMySQLColumnSalt);
 
 		yaml.set("Security.SQLProblem.stopServer", isStopEnabled);
 

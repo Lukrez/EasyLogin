@@ -20,7 +20,6 @@ public class MySQLDataSource {
 	private String tableName;
 	private String columnName;
 	private String columnPassword;
-	private String columnSalt;
 	private MiniConnectionPoolManager conPool;
 
 	public MySQLDataSource() throws ClassNotFoundException, SQLException {
@@ -32,10 +31,8 @@ public class MySQLDataSource {
 		this.tableName = Settings.getMySQLTablename;
 		this.columnName = Settings.getMySQLColumnName;
 		this.columnPassword = Settings.getMySQLColumnPassword;
-		this.columnSalt = Settings.getMySQLColumnSalt;
 
 		connect();
-		//setup();
 	}
 
 	private synchronized void connect() throws ClassNotFoundException, SQLException {
@@ -84,8 +81,8 @@ public class MySQLDataSource {
 			pst = con.prepareStatement("SELECT * FROM " + tableName + " WHERE " + columnName + "=?;");
 			pst.setString(1, user);
 			rs = pst.executeQuery();
-			if (rs.next()) {
-				return new PlayerAuth(rs.getString(columnName), rs.getString(columnPassword), rs.getString(columnSalt), "");
+			if (rs.next()) {				
+				return new PlayerAuth(rs.getString(columnName), rs.getString(columnPassword));
 			} else {
 				return null;
 			}
@@ -224,7 +221,7 @@ public class MySQLDataSource {
 	    }
 	}*/
 
-	public synchronized void registerUser(String username, String passwordHash, String salt) throws SQLException {
+	/*public synchronized void registerUser(String username, String passwordHash, String salt) throws SQLException {
 		Connection con = null;
 		Statement st = null;
 		try {
@@ -238,6 +235,6 @@ public class MySQLDataSource {
 			close(con);
 		}
 
-	}
+	}*/
 
 }
