@@ -36,7 +36,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	private HashMap<String, PlayerInfo> players = new HashMap<String, PlayerInfo>();
 	private HashMap<String, LoginTrial> loginTrials = new HashMap<String, LoginTrial>();
 	private ArrayList<String> guests = new ArrayList<String>();
-	private int nrLogins;;
+	private int nrLogins;
 	private long lastLoginCycle;
 	private boolean spamBotAttack;
 	private int purgeTaskId = -1;
@@ -56,7 +56,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			this.players.remove(pi.getPlayerName());
 		}
 
-		if (this.purgeTaskId != -1){
+		if (this.purgeTaskId != -1) {
 			Bukkit.getScheduler().cancelTask(this.purgeTaskId);
 		}
 		this.getLogger().info("v" + this.getDescription().getVersion() + " disabled.");
@@ -87,8 +87,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		this.lastLoginCycle = 0;
 		this.spamBotAttack = false;
 		startPurgeTask();
-		
-
 
 		this.getLogger().info("v" + this.getDescription().getVersion() + " enabled.");
 	}
@@ -115,7 +113,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				sender.sendMessage("/easylogin guestamount <number> - Setzt die Anzahl an möglichen Gästen auf dem Server");
 				sender.sendMessage("/easylogin joins <number> - Anzahl an Logins pro 10 Sekunden, Spambotdetection (0 = Aus)");
 				sender.sendMessage("/easylogin whitelist <ON|OFF> - Toggelt die Whitelist");
-				
+
 				return true;
 			}
 
@@ -126,26 +124,26 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				return true;
 			}
 			if (args[0].equalsIgnoreCase("status")) {
-				if (Settings.isWhitelisted){
-					sender.sendMessage(ChatColor.GRAY+"Whitelisted: "+ChatColor.RED+"JA");
+				if (Settings.isWhitelisted) {
+					sender.sendMessage(ChatColor.GRAY + "Whitelisted: " + ChatColor.RED + "JA");
 				} else {
-					sender.sendMessage(ChatColor.GRAY+"Whitelisted: "+ChatColor.GREEN+"NEIN");
+					sender.sendMessage(ChatColor.GRAY + "Whitelisted: " + ChatColor.GREEN + "NEIN");
 				}
-				sender.sendMessage(ChatColor.GRAY+"Anzahl an Gästen: "+ChatColor.WHITE+this.guests.size());
-				sender.sendMessage(ChatColor.GRAY+"Anzahl an UnloggedinUsers: "+ChatColor.WHITE+this.players.size());
-				sender.sendMessage(ChatColor.GRAY+"Nächster Loginpurge in: "+ChatColor.WHITE+(this.nexPurge - new Date().getTime())/1000/60 + "  min");
-				if (this.spamBotAttack){
-					sender.sendMessage(ChatColor.GRAY+"Spambot-Attacke: "+ChatColor.RED+"JA");
+				sender.sendMessage(ChatColor.GRAY + "Anzahl an Gästen: " + ChatColor.WHITE + this.guests.size());
+				sender.sendMessage(ChatColor.GRAY + "Anzahl an UnloggedinUsers: " + ChatColor.WHITE + this.players.size());
+				sender.sendMessage(ChatColor.GRAY + "Nächster Loginpurge in: " + ChatColor.WHITE + (this.nexPurge - new Date().getTime()) / 1000 / 60 + "  min");
+				if (this.spamBotAttack) {
+					sender.sendMessage(ChatColor.GRAY + "Spambot-Attacke: " + ChatColor.RED + "JA");
 				} else {
-					sender.sendMessage(ChatColor.GRAY+"Spambot-Attacke: "+ChatColor.GREEN+"NEIN");
+					sender.sendMessage(ChatColor.GRAY + "Spambot-Attacke: " + ChatColor.GREEN + "NEIN");
 				}
-				double waittime = (new Date().getTime()-this.lastLoginCycle)/1000;
-				if (waittime > 0){
-					sender.sendMessage(ChatColor.GRAY+"Loginfrequenz: "+ChatColor.WHITE+this.nrLogins/waittime);
+				double waittime = (new Date().getTime() - this.lastLoginCycle) / 1000;
+				if (waittime > 0) {
+					sender.sendMessage(ChatColor.GRAY + "Loginfrequenz: " + ChatColor.WHITE + this.nrLogins / waittime);
 				} else {
-					sender.sendMessage(ChatColor.GRAY+"Loginfrequenz: "+ChatColor.WHITE+"??");
+					sender.sendMessage(ChatColor.GRAY + "Loginfrequenz: " + ChatColor.WHITE + "??");
 				}
-				
+
 				sender.sendMessage(ChatColor.GRAY + "Spieler mit momentanen Login-Wartezeiten:");
 				for (LoginTrial lt : this.loginTrials.values()) {
 					sender.sendMessage(lt.playerName + " Wartezeit: " + (int) lt.waitForNextLogin() / 1000 + " sec" + " IP: " + lt.lastIP);
@@ -190,7 +188,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				return true;
 
 			}
-			
+
 			if (args[0].equalsIgnoreCase("joins")) {
 				if (args.length < 2) {
 					sender.sendMessage(ChatColor.RED + "Bitte die Anzahl an Einloggversuche pro 10 Sekunden angeben! (0 für AUS)");
@@ -207,17 +205,17 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				return true;
 
 			}
-			
+
 			if (args[0].equalsIgnoreCase("whitelist")) {
 				if (args.length < 2) {
 					sender.sendMessage(ChatColor.RED + "Bitte [ON|OFF] angeben!");
 					return true;
 				}
 				String status = args[1];
-				if (status.equalsIgnoreCase("on")){
+				if (status.equalsIgnoreCase("on")) {
 					Settings.isWhitelisted = true;
 					sender.sendMessage(ChatColor.GREEN + "Server ist im Whitelist-Modus!");
-				} else if (status.equalsIgnoreCase("off")){
+				} else if (status.equalsIgnoreCase("off")) {
 					Settings.isWhitelisted = false;
 					sender.sendMessage(ChatColor.GREEN + "Server ist im Spiel-Modus!");
 				} else {
@@ -306,20 +304,20 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerLogin(AsyncPlayerPreLoginEvent event) { // Search for Kick reasons
-		
+
 		// Anti-Spambot
 		// calculate threshold
 		this.nrLogins++;
-		if (Settings.getLoginsPerTenSeconds > 0 && this.nrLogins > Settings.getLoginsPerTenSeconds){
+		if (Settings.getLoginsPerTenSeconds > 0 && this.nrLogins > Settings.getLoginsPerTenSeconds) {
 			this.nrLogins = 0;
 			this.lastLoginCycle = new Date().getTime();
 		}
-		if (Settings.getLoginsPerTenSeconds > 0 && new Date().getTime()-this.lastLoginCycle < 10000){
+		if (Settings.getLoginsPerTenSeconds > 0 && new Date().getTime() - this.lastLoginCycle < 10000) {
 			this.spamBotAttack = true;
 		} else {
 			this.spamBotAttack = false;
 		}
-		
+
 		String playerName = event.getName();
 
 		int min = Settings.getMinNickLength;
@@ -337,11 +335,11 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		}
 
 		// Whitelist
-		if (Settings.isWhitelisted && !isInWhitelist(playerName)){
+		if (Settings.isWhitelisted && !isInWhitelist(playerName)) {
 			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!");
 			return;
 		}
-		
+
 		// SpamBot
 		if (this.spamBotAttack || Settings.getNrAllowedGuests > this.guests.size()) {
 			// Nur unregistrierte?
@@ -458,47 +456,48 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	public void onPlayerDropItem(PlayerDropItemEvent event) {
 		event.setCancelled(this.players.containsKey(event.getPlayer().getName()));
 	}
-	
-	private void startPurgeTask(){
-		if (this.purgeTaskId != -1){
+
+	private void startPurgeTask() {
+		if (this.purgeTaskId != -1) {
 			Bukkit.getScheduler().cancelTask(this.purgeTaskId);
 		}
-		if (Settings.getPurgeInterval > 0){
-			
+		if (Settings.getPurgeInterval > 0) {
+
 			this.purgeTaskId = this.getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
 				@Override
 				public void run() {
 					purgeLoginList();
-					nexPurge = new Date().getTime()+Settings.getPurgeInterval*60*1000;
+					nexPurge = new Date().getTime() + Settings.getPurgeInterval * 60 * 1000;
 				}
-			}, 60, Settings.getPurgeInterval*20*60);
+			}, 60, Settings.getPurgeInterval * 20 * 60);
 			this.getLogger().info("Purgetask started. Purgefrequency set to " + Settings.getPurgeInterval + " min.");
 		} else {
 			this.getLogger().info("Purgeinterval is 0 min, no Purgetask started!");
 		}
 	}
-	
-	private void purgeLoginList(){
+
+	private void purgeLoginList() {
 		this.getServer().getLogger().info("purging login data");
 		long now = new Date().getTime();
 		ArrayList<String> delete = new ArrayList<String>();
-		
-		for (LoginTrial lt : this.loginTrials.values()){
-			if (lt.trialNr > Settings.getPurgeThreshold) continue;
-			if (now-lt.lastLogin.getTime() > Settings.getPurgeInterval*20*60){
+
+		for (LoginTrial lt : this.loginTrials.values()) {
+			if (lt.trialNr > Settings.getPurgeThreshold)
+				continue;
+			if (now - lt.lastLogin.getTime() > Settings.getPurgeInterval * 20 * 60) {
 				delete.add(lt.playerName);
 			}
 		}
-		for (String name : delete){
+		for (String name : delete) {
 			this.loginTrials.remove(name);
 		}
 	}
-	
-	private boolean isInWhitelist(String playername){
-		
-		for (OfflinePlayer player : this.getServer().getWhitelistedPlayers()){
+
+	private boolean isInWhitelist(String playername) {
+
+		for (OfflinePlayer player : this.getServer().getWhitelistedPlayers()) {
 			if (player.getName().equalsIgnoreCase(playername))
-					return true;
+				return true;
 		}
 		return false;
 	}
