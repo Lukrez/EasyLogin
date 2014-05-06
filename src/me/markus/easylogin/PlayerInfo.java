@@ -16,6 +16,7 @@ public class PlayerInfo {
 		this.playerName = playerName;
 		this.playerAuth = playerAuth;
 		this.groups = new String[0];
+		this.location = location;
 		if (!this.setUnloggedinUser()) {
 			Player player = Bukkit.getPlayerExact(playerName);
 			if (player != null)
