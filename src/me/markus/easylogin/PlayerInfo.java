@@ -13,12 +13,12 @@ public class PlayerInfo {
 	private Location location;
 
 	public PlayerInfo(String playerName, PlayerAuth playerAuth, Location location) {
-		this.playerName = playerName;
+		this.playerName = playerName.toLowerCase();
 		this.playerAuth = playerAuth;
 		this.groups = new String[0];
 		this.location = location;
 		if (!this.setUnloggedinUser()) {
-			Player player = Bukkit.getPlayerExact(playerName);
+			Player player = Bukkit.getPlayer(this.playerName);
 			if (player != null)
 				player.kickPlayer("Ein Fehler beim Verschieben in die Gruppe <UnloggedinUser> ist aufgetreten. Kontaktiere bitte den Staff im Forum oder im TS!");
 		}
@@ -36,19 +36,19 @@ public class PlayerInfo {
 		this.groups = EasyLogin.permission.getPlayerGroups(player);
 		// remove old groups
 		for (String group : this.groups) {
-			 EasyLogin.permission.playerRemoveGroup("", player.getName(), group);
+			 EasyLogin.permission.playerRemoveGroup("", this.playerName, group);
 		}
-		 EasyLogin.permission.playerAddGroup("", player.getName(), "UnloggedinUser");
+		 EasyLogin.permission.playerAddGroup("", this.playerName , "UnloggedinUser");
 		return true;
 	}
 
 	public boolean removeUnloggedinUser() {
-		Player player = Bukkit.getPlayerExact(this.playerName);
+		Player player = Bukkit.getPlayer(this.playerName);
 		if (player == null)
 			return false;
-		EasyLogin.permission.playerRemoveGroup("", player.getName(), "UnloggedinUser");
+		EasyLogin.permission.playerRemoveGroup("", this.playerName, "UnloggedinUser");
 		for (int i = this.groups.length - 1; i >= 0; i--) {
-			EasyLogin.permission.playerAddGroup("", player.getName(), this.groups[i]);
+			EasyLogin.permission.playerAddGroup("", this.playerName, this.groups[i]);
 		}
 		return true;
 	}
@@ -69,10 +69,12 @@ public class PlayerInfo {
 	    return this.location;
 	}
 	
-	public boolean checkPassword(String cleartext){
+	public boolean checkPassword(String cleartext, String playername){
 		if (this.playerAuth == null)
 			return false;
-		return this.playerAuth.checkPswd(cleartext);
+		if (!this.playerName.equals(playername.toLowerCase()))
+			return false;
+		return this.playerAuth.checkPswd(cleartext, this.playerName);
 	}
 
 	

@@ -78,7 +78,7 @@ public class MySQLDataSource {
 		ResultSet rs = null;
 		try {
 			con = makeSureConnectionIsReady();
-			pst = con.prepareStatement("SELECT * FROM " + tableName + " WHERE " + columnName + "=?;");
+			pst = con.prepareStatement("SELECT * FROM " + tableName + " WHERE lower(" + columnName + ")=?;");
 			pst.setString(1, user);
 			rs = pst.executeQuery();
 			if (rs.next()) {				

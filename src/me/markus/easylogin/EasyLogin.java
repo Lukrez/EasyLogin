@@ -18,6 +18,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
@@ -239,7 +240,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		Player player = (Player) sender;
 
 		if (command.getName().equalsIgnoreCase("login")) {
-			PlayerInfo pi = this.players.get(player.getName());
+			PlayerInfo pi = this.players.get(player.getName().toLowerCase());
 			if (pi == null) {
 				player.sendMessage(ChatColor.GREEN + "Du bist bereits eingeloggt oder Gast auf dem Server. Wenn du dich soeben registriert hast starte Minecraft einmal neu!");
 				return true;
@@ -250,20 +251,20 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				return true;
 			}
 
-			if (!pi.checkPassword(args[0])) {
+			if (!pi.checkPassword(args[0],player.getName().toLowerCase())) {
 				player.kickPlayer(ChatColor.RED + "Falsches Passwort!");
 				this.getLogger().info("Spieler "+ player.getName() + " hat ein falsches Passwort eingegeben!");
 				return true;
 			}
 
-			this.players.remove(player.getName());
+			this.players.remove(player.getName().toLowerCase());
 			if (pi.removeUnloggedinUser()) {
 				player.sendMessage(ChatColor.GREEN + "Login erfolgreich.");
 				this.getLogger().info("Spieler "+ player.getName() + " hat sich erfolgreich eingeloggt!");
 				pi.cancelTask();
 
 				// remove possible loginTrials
-				this.loginTrials.remove(player.getName());
+				this.loginTrials.remove(player.getName().toLowerCase());
 
 				Bukkit.getServer().getPluginManager().callEvent(new LoginEvent(player, true));
 			} else {
@@ -292,7 +293,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			this.spamBotAttack = false;
 		}
 
-		String playerName = event.getName();
+		String playerName = event.getName().toLowerCase();
 
 		int min = Settings.getMinNickLength;
 		int max = Settings.getMaxNickLength;
@@ -303,7 +304,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			return;
 		}
 
-		if (!playerName.matches(regex) || playerName.equals("Player")) {
+		if (!playerName.matches(regex) || playerName.equals("player")) {
 			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Dein Minecraftname enthält nicht erlaubte Sonderzeichen!");
 			return;
 		}
@@ -323,7 +324,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		// SpamBot
 		if (this.spamBotAttack || Settings.getNrAllowedGuests < this.guests.size()) {
 			// Nur unregistrierte?
-			PlayerAuth playerAuth = database.getAuth(playerName.toLowerCase());
+			PlayerAuth playerAuth = database.getAuth(playerName);
 			if (playerAuth == null) {
 				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Bitte registriere dich auf www.minecraft-spielewiese.de. Bis gleich :-)");
 				return;
@@ -344,20 +345,21 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerJoin(PlayerJoinEvent event) {
 		Player player = event.getPlayer();
+		String lcName = EasyLogin.getlowerCasePlayerName(player);
 		if (player.isOp()) {
 			player.setOp(false);
 		}
 		// a) Already Logged in -> Kick?
 		// b) Unregistered -> Guest
-		PlayerAuth playerAuth = database.getAuth(player.getName().toLowerCase());
+		PlayerAuth playerAuth = database.getAuth(lcName);
 		if (playerAuth == null) {
 			// remove all previous groups
 			for (String group : permission.getPlayerGroups(player)) {
 				permission.playerRemoveGroup(player, group);
 			}
 			// set Guest group
-			permission.playerAddGroup(player, "Guest");
-			this.guests.add(player.getName());
+			permission.playerAddGroup(player, "Guest"); // TODO: Check, if pex works with lowercase names
+			this.guests.add(lcName);
 			player.sendMessage(ChatColor.GREEN + "Willkommen auf dem Minecraft-Spielewiese Server!");
 			return;
 		}
@@ -370,18 +372,18 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 		}
 		if (isNewTraveller) {
-		      permission.playerAddGroup("", player.getName(), "Traveller"); // New pex system
-		      permission.playerRemoveGroup("", player.getName(), "Guest");
+		      permission.playerAddGroup("", lcName, "Traveller"); // New pex system
+		      permission.playerRemoveGroup("", lcName, "Guest");
 		}
 
 		// c) Registered -> UnloggedinUsers -> After Login in old groups
-		PlayerInfo pi = new PlayerInfo(player.getName(), playerAuth, player.getLocation()); // TODO: Already logged in?
-		this.players.put(player.getName(), pi);
-		LoginTrial lt = (LoginTrial)this.loginTrials.get(player.getName());
+		PlayerInfo pi = new PlayerInfo(lcName, playerAuth, player.getLocation()); // TODO: Already logged in?
+		this.players.put(lcName, pi);
+		LoginTrial lt = (LoginTrial)this.loginTrials.get(lcName);
 	    if (lt == null)
 	    {
-	      lt = new LoginTrial(player.getName());
-	      this.loginTrials.put(player.getName(), lt);
+	      lt = new LoginTrial(lcName);
+	      this.loginTrials.put(lcName, lt);
 	    }
 	    lt.addLogin(player.getAddress().toString());
 		player.sendMessage(ChatColor.RED + "Bitte logge dich mit /l <password> innerhalb von 30 Sekunden ein.");
@@ -390,28 +392,30 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	@EventHandler
 	public void onPlayerQuit(PlayerQuitEvent event) {
 		Player player = event.getPlayer();
-		PlayerInfo pi = this.players.get(player.getName());
+		String lcName = EasyLogin.getlowerCasePlayerName(player);
+		PlayerInfo pi = this.players.get(lcName);
 		if (pi != null) {
 			pi.removeUnloggedinUser();
 			pi.cancelTask();
 			player.teleport(pi.getLocation());
 		}
-		this.players.remove(player.getName());
-		this.guests.remove(player.getName());
+		this.players.remove(lcName);
+		this.guests.remove(lcName);
 
 	}
 
 	@EventHandler
 	public void onPlayerKick(PlayerKickEvent event) {
 		Player player = event.getPlayer();
-		PlayerInfo pi = this.players.get(player.getName());
+		String lcName = EasyLogin.getlowerCasePlayerName(player);
+		PlayerInfo pi = this.players.get(lcName);
 		if (pi != null) {
 			pi.removeUnloggedinUser();
 			pi.cancelTask();
 			player.teleport(pi.getLocation());
 		}
-		this.players.remove(player.getName());
-		this.guests.remove(player.getName());
+		this.players.remove(lcName);
+		this.guests.remove(lcName);
 	}
 
 	@EventHandler
@@ -420,17 +424,23 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			return;
 
 		Player player = (Player) event.getWhoClicked();
-		event.setCancelled(this.players.containsKey(player.getName()));
+		event.setCancelled(this.players.containsKey(EasyLogin.getlowerCasePlayerName(player)));
 	}
 
 	@EventHandler
 	public void onPlayerPickupItem(PlayerPickupItemEvent event) {
-		event.setCancelled(this.players.containsKey(event.getPlayer().getName()));
+		event.setCancelled(this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer())));
 	}
 
 	@EventHandler
 	public void onPlayerDropItem(PlayerDropItemEvent event) {
-		event.setCancelled(this.players.containsKey(event.getPlayer().getName()));
+		event.setCancelled(this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer())));
+	}
+	
+	@EventHandler
+	public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
+		event.setCancelled(this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer())));
+		System.out.println("derp");
 	}
 
 	private void startPurgeTask() {
@@ -486,5 +496,9 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	      }
 	    }
 	    return false;
+	  }
+	  
+	  public static String getlowerCasePlayerName(Player player){
+		  return player.getName().toLowerCase();
 	  }
 }

@@ -5,17 +5,18 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class PlayerAuth {
-	public String playerName;
-	public String passwordInfo;
+	private String playerName;
+	private String passwordInfo;
 
 	public PlayerAuth(String playerName, String passwordInfo) {
-		this.playerName = playerName;
+		this.playerName = playerName.toLowerCase();
 		this.passwordInfo = passwordInfo;
 	}
 	
 	
-	public boolean checkPswd(String cleartext){
-		
+	public boolean checkPswd(String cleartext,String playername){
+		if (!this.playerName.equals(playername.toLowerCase()))
+			return false;
 		// extract wbb version
 		if (passwordInfo.startsWith("wcf1:")){
 			return checkPswd_WCF1(cleartext,this.passwordInfo);
