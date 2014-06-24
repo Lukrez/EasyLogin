@@ -439,8 +439,18 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	
 	@EventHandler
 	public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
-		event.setCancelled(this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer())));
-		System.out.println("derp");
+		Player player = event.getPlayer();
+		String playername = EasyLogin.getlowerCasePlayerName(player);
+		boolean isUnloggedin = this.players.containsKey(playername);
+		String command = event.getMessage();
+		if (!isUnloggedin)
+			return;
+		if (command.startsWith("/l ") || command.startsWith("/login "))
+			return;
+		player.sendMessage("Bitte logge dich mit /login <passwort> ein!");
+		this.getLogger().info("[EasyLogin] Cancelling command "+command +" from "+player.getName());
+		event.setCancelled(true);
+		
 	}
 
 	private void startPurgeTask() {
