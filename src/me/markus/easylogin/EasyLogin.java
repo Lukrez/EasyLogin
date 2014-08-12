@@ -17,6 +17,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -449,6 +450,23 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			return;
 		player.sendMessage("Bitte logge dich mit /login <passwort> ein!");
 		this.getLogger().info("[EasyLogin] Cancelling command "+command +" from "+player.getName());
+		event.setCancelled(true);
+		
+	}
+	
+	@EventHandler
+	public void onPlayerChat(AsyncPlayerChatEvent event) {
+		Player player = event.getPlayer();
+		String playername = EasyLogin.getlowerCasePlayerName(player);
+		if (this.guests.contains(playername)){
+			return;
+		}
+		
+		boolean isUnloggedin = this.players.containsKey(playername);
+		if (!isUnloggedin)
+			return;
+		player.sendMessage("Du musst dich eingloggen um chatten zu können!");
+		this.getLogger().info("[EasyLogin] Cancelling chat from "+player.getName());
 		event.setCancelled(true);
 		
 	}
