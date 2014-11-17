@@ -48,30 +48,6 @@ public class MySQLDataSource {
 		EasyLogin.instance.getLogger().info("Connection pool ready");
 	}
 
-	public synchronized boolean isAuthAvailable(String user) {
-		Connection con = null;
-		PreparedStatement pst = null;
-		ResultSet rs = null;
-		try {
-			con = makeSureConnectionIsReady();
-			pst = con.prepareStatement("SELECT * FROM " + tableName + " WHERE " + columnName + "=?;");
-
-			pst.setString(1, user);
-			rs = pst.executeQuery();
-			return rs.next();
-		} catch (SQLException ex) {
-			EasyLogin.instance.getLogger().severe(ex.getMessage());
-			return false;
-		} catch (TimeoutException ex) {
-			EasyLogin.instance.getLogger().severe(ex.getMessage());
-			return false;
-		} finally {
-			close(rs);
-			close(pst);
-			close(con);
-		}
-	}
-
 	public synchronized PlayerAuth getAuth(String user) {
 		Connection con = null;
 		PreparedStatement pst = null;
@@ -188,38 +164,6 @@ public class MySQLDataSource {
 		conPool = new MiniConnectionPoolManager(dataSource, 10);
 		EasyLogin.instance.getLogger().info("ConnectionPool was unavailable... Reconnected!");
 	}
-
-	/*private synchronized void setup() throws SQLException {
-	    Connection con = null;
-	    Statement st = null;
-	    ResultSet rs = null;
-	    try {
-	        con = makeSureConnectionIsReady();
-	        st = con.createStatement();
-	        st.executeUpdate("CREATE TABLE IF NOT EXISTS " + tableName + " ("
-	                + "id" + " INTEGER AUTO_INCREMENT,"
-	                + columnName + " VARCHAR(255) NOT NULL UNIQUE,"
-	                + columnPassword + " VARCHAR(255) NOT NULL,"
-	                + columnSalt + " VARCHAR(255) NOT NULL,"
-	                + "CONSTRAINT table_const_prim PRIMARY KEY (id));");
-	        rs = con.getMetaData().getColumns(null, null, tableName, columnPassword);
-	        if (!rs.next()) {
-	            st.executeUpdate("ALTER TABLE " + tableName + " ADD COLUMN "
-	                    + columnPassword + " VARCHAR(255) NOT NULL;");
-	        }
-	        rs.close();
-	        rs = con.getMetaData().getColumns(null, null, tableName, columnIp);
-	        if (!rs.next()) {
-	            st.executeUpdate("ALTER TABLE " + tableName + " ADD COLUMN "
-	                    + columnIp + " VARCHAR(40) NOT NULL;");
-	        }
-	        rs.close();
-	    } finally {
-	        close(rs);
-	        close(st);
-	        close(con);
-	    }
-	}*/
 
 	/*public synchronized void registerUser(String username, String passwordHash, String salt) throws SQLException {
 		Connection con = null;
