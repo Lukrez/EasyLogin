@@ -425,17 +425,24 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			return;
 
 		Player player = (Player) event.getWhoClicked();
-		event.setCancelled(this.players.containsKey(EasyLogin.getlowerCasePlayerName(player)));
+		if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(player))){
+			event.setCancelled(true);
+		}
+
 	}
 
 	@EventHandler
 	public void onPlayerPickupItem(PlayerPickupItemEvent event) {
-		event.setCancelled(this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer())));
+		if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer()))){
+			event.setCancelled(true);
+		}
 	}
 
 	@EventHandler
 	public void onPlayerDropItem(PlayerDropItemEvent event) {
-		event.setCancelled(this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer())));
+		if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer()))){
+			event.setCancelled(true);
+		}
 	}
 	
 	@EventHandler
