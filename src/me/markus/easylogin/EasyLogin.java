@@ -453,7 +453,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		String command = event.getMessage();
 		if (!isUnloggedin)
 			return;
-		if (command.startsWith("/l ") || command.startsWith("/login "))
+		if (command.startsWith("/l ") || command.startsWith("/login ") || command.startsWith("/L "))
 			return;
 		player.sendMessage("Bitte logge dich mit /login <passwort> ein!");
 		this.getLogger().info("[EasyLogin] Cancelling command "+command +" from "+player.getName());
