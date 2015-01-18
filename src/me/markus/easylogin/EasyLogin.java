@@ -3,6 +3,7 @@ package me.markus.easylogin;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import net.milkbowl.vault.permission.Permission;
 
@@ -41,6 +42,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	private boolean spamBotAttack;
 	private int purgeTaskId = -1;
 	private long nexPurge;
+	private HashSet<String> exemptedGuests;
 	private String whitelistReason = "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!";
 
 	@Override
@@ -87,6 +89,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		this.nrLogins = 0;
 		this.lastLoginCycle = 0;
 		this.spamBotAttack = false;
+		this.exemptedGuests = new HashSet<String>();
 		startPurgeTask();
 
 		this.getLogger().info("v" + this.getDescription().getVersion() + " enabled.");
@@ -112,8 +115,13 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				sender.sendMessage("/easylogin show <player name> - Zeigt an ob der angebene User eine Loginbeschränkung hat");
 				sender.sendMessage("/easylogin pardon <player name> - Löscht die Loginbeschränkung für den User");
 				sender.sendMessage("/easylogin guestamount <number> - Setzt die Anzahl an möglichen Gästen auf dem Server");
+				sender.sendMessage("/easylogin guestexempt <name> - Nimm den Gast von der Spambot-Protection aus");
+				sender.sendMessage("/easylogin guestunexempt <name,*> - Entferne den Gast von der Spambot-Protection-Ausnahmeliste");				
+				sender.sendMessage("/easylogin listexempt -  Zeige alle Gäste an, welche von der Spambotprotection ausgenommen sind");
 				sender.sendMessage("/easylogin joins <number> - Anzahl an Logins pro 10 Sekunden, Spambotdetection (0 = Aus)");
 				sender.sendMessage("/easylogin whitelist <ON|OFF> [reason for whitelist]- Toggelt die Whitelist");
+
+				
 
 				return true;
 			}
@@ -224,7 +232,50 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				sender.sendMessage(ChatColor.GREEN + "Maximal-Anzahl an Gästen auf diesem Server geändert!");
 				return true;
 			}
-
+			
+			if (args[0].equalsIgnoreCase("listexempt")) {
+				if (this.exemptedGuests.size() == 0){
+					sender.sendMessage(ChatColor.GREEN+"Keine Spieler von der Spambot-Sperre ausgenommen!");
+					return true;
+				}
+				for (String playername: this.exemptedGuests){
+					sender.sendMessage(ChatColor.GREEN+playername);
+				}
+				return true;
+			}
+			
+			if (args[0].equalsIgnoreCase("guestexempt")) {
+				if (args.length < 2) {
+					sender.sendMessage(ChatColor.RED+"Gib bitte einen Spielernamen an!");
+					return true;
+				}
+				String playerName = args[1].toLowerCase();
+				this.exemptedGuests.add(playerName);
+				sender.sendMessage(ChatColor.GREEN+"Spieler "+args[1] + " von möglichen Spambot-Sperren ausgenommen!");
+				return true;
+			}
+			
+			if (args[0].equalsIgnoreCase("guestunexempt")) {
+				if (args.length < 2) {
+					sender.sendMessage(ChatColor.RED+"Gib bitte einen Spielernamen an!");
+					return true;
+				}
+				// check for wildcard
+				if (args[1].equals("*")){
+					this.exemptedGuests.clear();
+					sender.sendMessage(ChatColor.GREEN+"Alle Spieler von der Spambot-Exempt Liste gelöscht!");
+					return true;
+				}
+				String playerName = args[1].toLowerCase();
+				if (!this.exemptedGuests.contains(playerName)){
+					sender.sendMessage(ChatColor.RED+"Spieler ist momentan nicht auf der Spambot-Exempt Liste!");
+					return true;
+				}
+				this.exemptedGuests.remove(playerName);
+				sender.sendMessage(ChatColor.GREEN+"Spieler "+args[1] + " von der Spambot-Exempt Liste gelöscht!");
+				return true;
+			}
+				
 			if (args[0].equalsIgnoreCase("whitelist")) {
 				if (args.length < 2) {
 					sender.sendMessage(ChatColor.RED + "Bitte [ON|OFF] angeben!");
@@ -298,7 +349,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerLogin(AsyncPlayerPreLoginEvent event) { // Search for Kick reasons
-
 		// Anti-Spambot
 		// calculate threshold
 		this.nrLogins++;
@@ -339,17 +389,15 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST, this.whitelistReason);
 			return;
 		}
-
 		// SpamBot
-		if (this.spamBotAttack || Settings.getNrAllowedGuests < this.guests.size()) {
+		if (this.spamBotAttack || Settings.getNrAllowedGuests <= this.guests.size()) {
 			// Nur unregistrierte?
 			PlayerAuth playerAuth = database.getAuth(playerName);
-			if (playerAuth == null) {
+			if (playerAuth == null && !this.exemptedGuests.contains(playerName)) {
 				event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "Bitte registriere dich auf www.minecraft-spielewiese.de. Bis gleich :-)");
 				return;
 			}
 		}
-
 		// Logintrials
 		LoginTrial lt = this.loginTrials.get(playerName);
 		if (lt != null) {
