@@ -192,7 +192,8 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 			if (args[0].equalsIgnoreCase("joins")) {
 				if (args.length < 2) {
-					sender.sendMessage(ChatColor.RED + "Bitte die Anzahl an Einloggversuche pro 10 Sekunden angeben! (0 für AUS)");
+					sender.sendMessage(ChatColor.GREEN+"Momentan können "+Settings.getLoginsPerTenSeconds+ " Gäste pro 10 Sekunden joinen, ohne die Spambotschwelle auszulösen.");
+					sender.sendMessage(ChatColor.GREEN + "Um die Schwelle zu ändern gib bitte eine Zahl pro 10 Sekunden an! (0 für AUS)");
 					return true;
 				}
 				int freq = Integer.parseInt(args[1]);
@@ -205,6 +206,23 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				sender.sendMessage(ChatColor.GREEN + "AntiSpamBot-Schwelle geändert!");
 				return true;
 
+			}
+			
+			if (args[0].equalsIgnoreCase("guestamount")) {
+				if (args.length < 2) {
+					sender.sendMessage(ChatColor.GREEN+"Momentan können "+Settings.getNrAllowedGuests+ " Gäste auf den Server!");
+					sender.sendMessage(ChatColor.GREEN + "Um die Anzahl zu ändern gib bitte eine Zahl an!");
+					return true;
+				}
+				int amount = Integer.parseInt(args[1]);
+				if (amount < 0) {
+					sender.sendMessage(ChatColor.RED + "Bitte eine Zahl größer 0 angeben!");
+					return true;
+				}
+				Settings.getNrAllowedGuests = amount;
+				Settings.saveSettings();
+				sender.sendMessage(ChatColor.GREEN + "Maximal-Anzahl an Gästen auf diesem Server geändert!");
+				return true;
 			}
 
 			if (args[0].equalsIgnoreCase("whitelist")) {
