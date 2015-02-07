@@ -10,6 +10,7 @@ import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
+
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
@@ -26,6 +27,12 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -51,7 +58,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			database.close();
 		//set groups of all inloggedinusers and kick them
 		for (PlayerInfo pi : this.players.values()) {
-			pi.removeUnloggedinUser();
 			Player player = this.getServer().getPlayerExact(pi.getPlayerName());
 			if (player != null)
 				player.kickPlayer("Server wird gestoppt!");
@@ -326,21 +332,17 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				this.getLogger().info("Spieler "+ player.getName() + " hat ein falsches Passwort eingegeben!");
 				return true;
 			}
-
+			
+			// Remove player vom unloggedin Group
 			this.players.remove(player.getName().toLowerCase());
-			if (pi.removeUnloggedinUser()) {
-				player.sendMessage(ChatColor.GREEN + "Login erfolgreich.");
-				this.getLogger().info("Spieler "+ player.getName() + " hat sich erfolgreich eingeloggt!");
-				pi.cancelTask();
+			player.sendMessage(ChatColor.GREEN + "Login erfolgreich.");
+			this.getLogger().info("Spieler "+ player.getName() + " hat sich erfolgreich eingeloggt!");
+			pi.cancelTask();
 
-				// remove possible loginTrials
-				this.loginTrials.remove(player.getName().toLowerCase());
-
-				Bukkit.getServer().getPluginManager().callEvent(new LoginEvent(player, true));
-			} else {
-				player.sendMessage(ChatColor.RED + "Ein Fehler beim Verschieben in deine alte Gruppe ist aufgetreten. Bitte kontaktiere ein Staffmitglied!");
-			}
-
+			// remove possible loginTrials
+			this.loginTrials.remove(player.getName().toLowerCase());
+			
+			Bukkit.getServer().getPluginManager().callEvent(new LoginEvent(player, true));
 			return true;
 		}
 
@@ -422,10 +424,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		if (playerAuth == null) {
 			// remove all previous groups
 			for (String group : permission.getPlayerGroups(player)) {
-				permission.playerRemoveGroup(player, group);
+				permission.playerRemoveGroup(null,player, group);
 			}
 			// set Guest group
-			permission.playerAddGroup(player, "Guest"); // TODO: Check, if pex works with lowercase names
+			permission.playerAddGroup(null,player, "Guest"); // TODO: Check, if pex works with lowercase names
 			this.guests.add(lcName);
 			player.sendMessage(ChatColor.GREEN + "Willkommen auf dem Minecraft-Spielewiese Server!");
 			return;
@@ -439,8 +441,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 		}
 		if (isNewTraveller) {
-		      permission.playerAddGroup("", lcName, "Traveller"); // New pex system
-		      permission.playerRemoveGroup("", lcName, "Guest");
+			permission.playerAddGroup(null,player, "Traveller");
+			permission.playerRemoveGroup(null,player, "Guest");
+		     //permission.playerAddGroup("", lcName, "Traveller"); // New pex system
+		     //permission.playerRemoveGroup("", lcName, "Guest");
 		}
 
 		// c) Registered -> UnloggedinUsers -> After Login in old groups
@@ -462,7 +466,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		String lcName = EasyLogin.getlowerCasePlayerName(player);
 		PlayerInfo pi = this.players.get(lcName);
 		if (pi != null) {
-			pi.removeUnloggedinUser();
 			pi.cancelTask();
 			player.teleport(pi.getLocation());
 		}
@@ -477,12 +480,63 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		String lcName = EasyLogin.getlowerCasePlayerName(player);
 		PlayerInfo pi = this.players.get(lcName);
 		if (pi != null) {
-			pi.removeUnloggedinUser();
 			pi.cancelTask();
 			player.teleport(pi.getLocation());
 		}
 		this.players.remove(lcName);
 		this.guests.remove(lcName);
+	}
+	
+	@EventHandler
+	public void onPlayerInteractEvent(PlayerInteractEvent event){
+		if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer()))){
+			event.setCancelled(true);
+		}
+	}
+	
+	@EventHandler
+	public void onPlayerInteractEntityEvent(PlayerInteractEntityEvent event){
+		if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(event.getPlayer()))){
+			event.setCancelled(true);
+		}
+	}
+	
+	
+	@EventHandler
+	public void onEntityTargetLivingEntityEvent(EntityTargetLivingEntityEvent event){
+		if (event.getTarget() instanceof Player){
+			Player player = (Player)event.getTarget();
+			if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(player))){
+				event.setCancelled(true);
+			}
+		}
+	}
+
+	@EventHandler
+	public void onEntityDamageByEntityEvent(EntityDamageByEntityEvent event){
+		if (event.getDamager() instanceof Player){
+			Player player = (Player)event.getDamager();
+			if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(player))){
+				event.setCancelled(true);
+			}
+		}
+		
+		if (event.getEntity() instanceof Player){
+			Player player = (Player)event.getEntity();
+			if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(player))){
+				event.setCancelled(true);
+			}
+		}
+	}
+	
+	@EventHandler
+	public void onEntityDamageEvent(EntityDamageEvent event){
+		if (event.getEntity() instanceof Player){
+			Player player = (Player)event.getEntity();
+			if (this.players.containsKey(EasyLogin.getlowerCasePlayerName(player))){
+				event.setCancelled(true);
+			}
+		}
 	}
 
 	@EventHandler

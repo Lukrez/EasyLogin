@@ -13,7 +13,6 @@ public class LoginTask extends BukkitRunnable {
 
 	@Override
 	public void run() {
-		this.pi.removeUnloggedinUser();
 		Bukkit.getPlayer(this.pi.getPlayerName()).kickPlayer("Du hast dich nicht innerhalb von 30 Sekunden eingeloggt.");
 	}
 }
