@@ -6,11 +6,13 @@ import java.security.NoSuchAlgorithmException;
 
 public class PlayerAuth {
 	private String playerName;
+	private Playerstatus status;
 	private String passwordInfo;
 
-	public PlayerAuth(String playerName, String passwordInfo) {
+	public PlayerAuth(String playerName, String passwordInfo, Playerstatus status) {
 		this.playerName = playerName.toLowerCase();
 		this.passwordInfo = passwordInfo;
+		this.status = status;
 	}
 	
 	
@@ -25,6 +27,18 @@ public class PlayerAuth {
 		}
 		
 		return false;
+	}
+	
+	public Playerstatus getStatus(){
+		return this.status;
+	}
+	
+	public String getName(){
+		return this.playerName;
+	}
+	
+	public void setStatus(Playerstatus status){
+		this.status = status;
 	}
 	
 	

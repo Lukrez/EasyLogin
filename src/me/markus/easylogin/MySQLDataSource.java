@@ -20,6 +20,7 @@ public class MySQLDataSource {
 	private String tableName;
 	private String columnName;
 	private String columnPassword;
+	private String columnStatus;
 	private MiniConnectionPoolManager conPool;
 
 	public MySQLDataSource() throws ClassNotFoundException, SQLException {
@@ -31,6 +32,7 @@ public class MySQLDataSource {
 		this.tableName = Settings.getMySQLTablename;
 		this.columnName = Settings.getMySQLColumnName;
 		this.columnPassword = Settings.getMySQLColumnPassword;
+		this.columnStatus = Settings.getMySQLColumnLoginStatus;
 
 		connect();
 	}
@@ -58,7 +60,9 @@ public class MySQLDataSource {
 			pst.setString(1, user);
 			rs = pst.executeQuery();
 			if (rs.next()) {				
-				return new PlayerAuth(rs.getString(columnName), rs.getString(columnPassword));
+				return new PlayerAuth(rs.getString(this.columnName), 
+									rs.getString(this.columnPassword),
+									Playerstatus.valueOf(rs.getString(this.columnStatus)));
 			} else {
 				return null;
 			}
@@ -70,6 +74,33 @@ public class MySQLDataSource {
 			return null;
 		} finally {
 			close(rs);
+			close(pst);
+			close(con);
+		}
+	}
+	
+	public synchronized void updatePlayerStatus(PlayerAuth playerauth) {
+
+		Connection con = null;
+		PreparedStatement pst = null;
+		try {
+			con = makeSureConnectionIsReady();
+			
+			String statement = String.format("UPDATE %s SET %s=? WHERE %s=?;",
+								this.tableName,this.columnStatus,this.columnName);
+			
+			
+			pst = con.prepareStatement(statement);
+			pst.setString(1, playerauth.getStatus().toString());
+			pst.setString(2, playerauth.getName());
+			pst.execute();
+		} catch (SQLException ex) {
+			EasyLogin.instance.getLogger().severe(ex.getMessage());
+			return;
+		} catch (TimeoutException ex) {
+			EasyLogin.instance.getLogger().severe(ex.getMessage());
+			return;
+		} finally {
 			close(pst);
 			close(con);
 		}

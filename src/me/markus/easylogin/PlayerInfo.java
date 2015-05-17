@@ -44,6 +44,10 @@ public class PlayerInfo {
 			return false;
 		return this.playerAuth.checkPswd(cleartext, this.playerName);
 	}
+	
+	public void setPlayerstatus(Playerstatus status){
+		this.playerAuth.setStatus(status);
+	}
 
 	
 

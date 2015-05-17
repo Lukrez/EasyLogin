@@ -130,8 +130,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				sender.sendMessage("/easylogin joins <number> - Anzahl an Logins pro 10 Sekunden, Spambotdetection (0 = Aus)");
 				sender.sendMessage("/easylogin whitelist <ON|OFF> [reason for whitelist]- Toggelt die Whitelist");
 
-				
-
 				return true;
 			}
 
@@ -336,7 +334,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				return true;
 			}
 			
-			// Remove player vom unloggedin Group
+			
+			pi.setPlayerstatus(Playerstatus.Loggedin);
+			EasyLogin.callBungeeCoord(player, "#Playerlogin#"+player.getName().toLowerCase()+"#");
+			// Remove player vom unloggedin Group 
 			this.players.remove(player.getName().toLowerCase());
 			player.sendMessage(ChatColor.GREEN + "Login erfolgreich.");
 			this.getLogger().info("Spieler "+ player.getName() + " hat sich erfolgreich eingeloggt!");
