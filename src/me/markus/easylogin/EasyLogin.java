@@ -1,5 +1,8 @@
 package me.markus.easylogin;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -10,7 +13,6 @@ import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
-
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
@@ -32,7 +34,6 @@ import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -96,8 +97,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		this.lastLoginCycle = 0;
 		this.spamBotAttack = false;
 		this.exemptedGuests = new HashSet<String>();
+		
+		this.getServer().getMessenger().registerOutgoingPluginChannel(this, "LoginFoo");
+		
 		startPurgeTask();
-
 		this.getLogger().info("v" + this.getDescription().getVersion() + " enabled.");
 	}
 
@@ -655,5 +658,19 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	  
 	  public static String getlowerCasePlayerName(Player player){
 		  return player.getName().toLowerCase();
+	  }
+	  
+	  
+	  public static void callBungeeCoord(Player player, String message){
+	  
+	  ByteArrayOutputStream b = new ByteArrayOutputStream();
+		DataOutputStream out = new DataOutputStream(b);
+		 
+		try {
+		    out.writeUTF(message);
+		} catch (IOException e) {
+		    // Can never happen
+		}
+		player.sendPluginMessage(EasyLogin.instance, "LoginFoo", b.toByteArray());
 	  }
 }
