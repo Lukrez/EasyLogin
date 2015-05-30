@@ -100,10 +100,19 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		this.exemptedGuests = new HashSet<String>();
 		
 		/* Set Console Filter */
-		if (Settings.isConsoleFilterEnabled) {Ü
+		if (Settings.isConsoleFilterEnabled) {
 			this.getLogger().setFilter(new ConsoleFilter());
 			Bukkit.getLogger().setFilter(new ConsoleFilter());
 			//Logger.getLogger("Minecraft").setFilter(new ConsoleFilter());
+			
+			try {
+				Class.forName("org.apache.logging.log4j.core.Filter");
+				this.setLog4JFilter();
+				} catch (ClassNotFoundException e) {
+					this.getLogger().info("You're using Minecraft 1.6.x or older, Log4J support is disabled");
+				} catch (NoClassDefFoundError e) {
+					this.getLogger().info("You're using Minecraft 1.6.x or older, Log4J support is disabled");
+			}
 			
 		}
 		
@@ -694,5 +703,16 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		    // Can never happen
 		}
 		player.sendPluginMessage(EasyLogin.instance, "LoginFoo", b.toByteArray());
+	  }
+	  
+	  private void setLog4JFilter() {
+		  
+		  Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
+			  @Override
+			  public void run() {
+				  org.apache.logging.log4j.core.Logger coreLogger = (org.apache.logging.log4j.core.Logger) LogManager.getRootLogger();
+				  coreLogger.addFilter(new Log4JFilter());
+			  }
+		  });
 	  }
 }
