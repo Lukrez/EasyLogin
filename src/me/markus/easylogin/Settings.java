@@ -28,6 +28,7 @@ public class Settings {
 	public static boolean isWhitelisted;
 	public static int getPurgeInterval;
 	public static int getPurgeThreshold;
+	public static boolean isConsoleFilterEnabled;
 
 	public static void loadSettings() {
 
@@ -50,7 +51,8 @@ public class Settings {
 		getNrAllowedGuests = 30;
 		getPurgeInterval = 60;
 		getPurgeThreshold = 3;
-		isWhitelisted = false;
+		isWhitelisted = false;		
+		isConsoleFilterEnabled = true;
 
 		File file = new File(EasyLogin.instance.getDataFolder(), "config.yml");
 		if (!file.exists())
@@ -83,6 +85,8 @@ public class Settings {
 			getPurgeThreshold = yaml.getInt("purge.amountOfLogins");
 			
 			isWhitelisted = yaml.getBoolean("whitelist");
+			
+			isConsoleFilterEnabled = yaml.getBoolean("Security.enableConsoleFilter");
 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -122,6 +126,8 @@ public class Settings {
 		yaml.set("purge.amountOfLogins", getPurgeThreshold);
 		
 		yaml.set("whitelist", isWhitelisted);
+		
+		yaml.set("Security.enableConsoleFilter", isConsoleFilterEnabled);
 
 		try {
 			yaml.save(file);
