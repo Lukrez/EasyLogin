@@ -28,6 +28,7 @@ public class Settings {
 	public static boolean isWhitelisted;
 	public static int getPurgeInterval;
 	public static int getPurgeThreshold;
+	public static boolean useBungeeCoord;
 
 	public static void loadSettings() {
 
@@ -39,6 +40,7 @@ public class Settings {
 		getMySQLTablename = "all_users";
 		getMySQLPassword = "foobar";
 		isStopEnabled = true;
+		useBungeeCoord = false;
 		getMySQLColumnName = "username";
 		getMySQLColumnPassword = "password";
 		getMySQLColumnLoginStatus = "loginStatus";
@@ -51,6 +53,7 @@ public class Settings {
 		getPurgeInterval = 60;
 		getPurgeThreshold = 3;
 		isWhitelisted = false;
+		
 
 		File file = new File(EasyLogin.instance.getDataFolder(), "config.yml");
 		if (!file.exists())
@@ -70,6 +73,7 @@ public class Settings {
 			getMySQLColumnLoginStatus = yaml.getString("Datasource.mySQLColumnLoginStatus");
 			
 			isStopEnabled = yaml.getBoolean("Security.SQLProblem.stopServer");
+			useBungeeCoord = yaml.getBoolean("Security.bungeecoord.use");
 
 			getMinNickLength = yaml.getInt("restrictions.minNicknameLength");
 			getMaxNickLength = yaml.getInt("restrictions.maxNicknameLength");
@@ -109,6 +113,7 @@ public class Settings {
 		yaml.set("Datasource.mySQLColumnLoginStatus", getMySQLColumnLoginStatus);
 
 		yaml.set("Security.SQLProblem.stopServer", isStopEnabled);
+		yaml.set("Security.bungeecoord.use", useBungeeCoord);
 
 		yaml.set("restrictions.minNicknameLength", getMinNickLength);
 		yaml.set("restrictions.maxNicknameLength", getMaxNickLength);

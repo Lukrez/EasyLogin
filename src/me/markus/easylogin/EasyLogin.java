@@ -336,9 +336,13 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			
 			
 			pi.setPlayerstatus(Playerstatus.Loggedin);
-			database.updatePlayerStatus(pi.getAuth());
-			EasyLogin.callBungeeCoord(player, "#Playerlogin#"+player.getName().toLowerCase()+"#");
-			// Remove player vom unloggedin Group 
+			if (Settings.useBungeeCoord == true){
+				System.out.println("akjnaklna");
+				database.updatePlayerStatus(pi.getAuth());
+				EasyLogin.callBungeeCoord(player, "#Playerlogin#"+player.getName().toLowerCase()+"#");
+			}
+			
+			// Remove player from unloggedin group 
 			this.players.remove(player.getName().toLowerCase());
 			player.sendMessage(ChatColor.GREEN + "Login erfolgreich.");
 			this.getLogger().info("Spieler "+ player.getName() + " hat sich erfolgreich eingeloggt!");
@@ -457,7 +461,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		PlayerInfo pi = new PlayerInfo(lcName, playerAuth, player.getLocation()); // TODO: Already logged in?
 		
 		// check if player is already logged in via bungeecoord
-		if (playerAuth.getStatus() == Playerstatus.Loggedin){
+		if (Settings.useBungeeCoord == true && playerAuth.getStatus() == Playerstatus.Loggedin){
 			this.getLogger().info("Spieler "+ player.getName() + " ist bereits über Bungeecoord eingeloggt!");
 			pi.cancelTask();
 			return;
@@ -474,32 +478,29 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	    lt.addLogin(player.getAddress().toString());
 		player.sendMessage(ChatColor.RED + "Bitte logge dich mit /l <password> innerhalb von 30 Sekunden ein.");
 	}
-
-	@EventHandler
-	public void onPlayerQuit(PlayerQuitEvent event) {
-		Player player = event.getPlayer();
+	
+	public void removePlayer(Player player){
 		String lcName = EasyLogin.getlowerCasePlayerName(player);
 		PlayerInfo pi = this.players.get(lcName);
 		if (pi != null) {
 			pi.cancelTask();
 			player.teleport(pi.getLocation());
 		}
+
 		this.players.remove(lcName);
 		this.guests.remove(lcName);
+	}
 
+	@EventHandler
+	public void onPlayerQuit(PlayerQuitEvent event) {
+		Player player = event.getPlayer();
+		this.removePlayer(player);
 	}
 
 	@EventHandler
 	public void onPlayerKick(PlayerKickEvent event) {
 		Player player = event.getPlayer();
-		String lcName = EasyLogin.getlowerCasePlayerName(player);
-		PlayerInfo pi = this.players.get(lcName);
-		if (pi != null) {
-			pi.cancelTask();
-			player.teleport(pi.getLocation());
-		}
-		this.players.remove(lcName);
-		this.guests.remove(lcName);
+		this.removePlayer(player);
 	}
 	
 	@EventHandler
