@@ -29,6 +29,7 @@ public class Settings {
 	public static int getPurgeInterval;
 	public static int getPurgeThreshold;
 	public static boolean useBungeeCoord;
+	public static boolean isConsoleFilterEnabled;
 
 	public static void loadSettings() {
 
@@ -52,8 +53,8 @@ public class Settings {
 		getNrAllowedGuests = 30;
 		getPurgeInterval = 60;
 		getPurgeThreshold = 3;
-		isWhitelisted = false;
-		
+		isWhitelisted = false;		
+		isConsoleFilterEnabled = true;
 
 		File file = new File(EasyLogin.instance.getDataFolder(), "config.yml");
 		if (!file.exists())
@@ -73,7 +74,8 @@ public class Settings {
 			getMySQLColumnLoginStatus = yaml.getString("Datasource.mySQLColumnLoginStatus");
 			
 			isStopEnabled = yaml.getBoolean("Security.SQLProblem.stopServer");
-			useBungeeCoord = yaml.getBoolean("Security.bungeecoord.use");
+			useBungeeCoord = yaml.getBoolean("Security.useBungeecoord");
+			isConsoleFilterEnabled = yaml.getBoolean("Security.enableConsoleFilter");
 
 			getMinNickLength = yaml.getInt("restrictions.minNicknameLength");
 			getMaxNickLength = yaml.getInt("restrictions.maxNicknameLength");
@@ -87,6 +89,8 @@ public class Settings {
 			getPurgeThreshold = yaml.getInt("purge.amountOfLogins");
 			
 			isWhitelisted = yaml.getBoolean("whitelist");
+			
+			
 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -113,7 +117,8 @@ public class Settings {
 		yaml.set("Datasource.mySQLColumnLoginStatus", getMySQLColumnLoginStatus);
 
 		yaml.set("Security.SQLProblem.stopServer", isStopEnabled);
-		yaml.set("Security.bungeecoord.use", useBungeeCoord);
+		yaml.set("Security.useBungeecoord", useBungeeCoord);
+		yaml.set("Security.enableConsoleFilter", isConsoleFilterEnabled);
 
 		yaml.set("restrictions.minNicknameLength", getMinNickLength);
 		yaml.set("restrictions.maxNicknameLength", getMaxNickLength);
@@ -127,6 +132,8 @@ public class Settings {
 		yaml.set("purge.amountOfLogins", getPurgeThreshold);
 		
 		yaml.set("whitelist", isWhitelisted);
+		
+		
 
 		try {
 			yaml.save(file);

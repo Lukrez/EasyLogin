@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.logging.Logger;
 
 import net.milkbowl.vault.permission.Permission;
 
@@ -97,6 +98,14 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		this.lastLoginCycle = 0;
 		this.spamBotAttack = false;
 		this.exemptedGuests = new HashSet<String>();
+		
+		/* Set Console Filter */
+		if (Settings.isConsoleFilterEnabled) {Ü
+			this.getLogger().setFilter(new ConsoleFilter());
+			Bukkit.getLogger().setFilter(new ConsoleFilter());
+			//Logger.getLogger("Minecraft").setFilter(new ConsoleFilter());
+			
+		}
 		
 		this.getServer().getMessenger().registerOutgoingPluginChannel(this, "LoginFoo");
 		
