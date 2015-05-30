@@ -336,6 +336,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			
 			
 			pi.setPlayerstatus(Playerstatus.Loggedin);
+			database.updatePlayerStatus(pi.getAuth());
 			EasyLogin.callBungeeCoord(player, "#Playerlogin#"+player.getName().toLowerCase()+"#");
 			// Remove player vom unloggedin Group 
 			this.players.remove(player.getName().toLowerCase());
@@ -436,6 +437,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			player.sendMessage(ChatColor.GREEN + "Willkommen auf dem Minecraft-Spielewiese Server!");
 			return;
 		}
+		
 		boolean isNewTraveller = true;
 		for (String group : permission.getPlayerGroups(player)) {
 			if (!group.equals("Guest")) {
@@ -447,13 +449,22 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		if (isNewTraveller) {
 			permission.playerAddGroup(null,player, "Traveller");
 			permission.playerRemoveGroup(null,player, "Guest");
-		     //permission.playerAddGroup("", lcName, "Traveller"); // New pex system
-		     //permission.playerRemoveGroup("", lcName, "Guest");
 		}
+		
+		
 
 		// c) Registered -> UnloggedinUsers -> After Login in old groups
 		PlayerInfo pi = new PlayerInfo(lcName, playerAuth, player.getLocation()); // TODO: Already logged in?
+		
+		// check if player is already logged in via bungeecoord
+		if (playerAuth.getStatus() == Playerstatus.Loggedin){
+			this.getLogger().info("Spieler "+ player.getName() + " ist bereits über Bungeecoord eingeloggt!");
+			pi.cancelTask();
+			return;
+		}
+
 		this.players.put(lcName, pi);
+
 		LoginTrial lt = (LoginTrial)this.loginTrials.get(lcName);
 	    if (lt == null)
 	    {

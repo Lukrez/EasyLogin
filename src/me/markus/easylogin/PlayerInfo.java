@@ -33,6 +33,10 @@ public class PlayerInfo {
 		return this.playerName;
 	}
 	
+	public PlayerAuth getAuth(){
+		return this.playerAuth;
+	}
+	
 	public Location getLocation(){
 	    return this.location;
 	}
