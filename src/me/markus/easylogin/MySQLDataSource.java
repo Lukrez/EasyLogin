@@ -59,10 +59,20 @@ public class MySQLDataSource {
 			pst = con.prepareStatement("SELECT * FROM " + tableName + " WHERE lower(" + columnName + ")=?;");
 			pst.setString(1, user);
 			rs = pst.executeQuery();
-			if (rs.next()) {				
+			if (rs.next()) {
+				
+				Playerstatus playerstatus = Playerstatus.Offline;
+				try{
+					Playerstatus.valueOf(rs.getString(this.columnStatus));
+				} catch (IllegalArgumentException e) {
+					playerstatus = Playerstatus.Offline;
+				} catch (NullPointerException e) {
+					playerstatus = Playerstatus.Offline;
+				}
+				
 				return new PlayerAuth(rs.getString(this.columnName), 
 									rs.getString(this.columnPassword),
-									Playerstatus.valueOf(rs.getString(this.columnStatus)));
+									playerstatus);
 			} else {
 				return null;
 			}
