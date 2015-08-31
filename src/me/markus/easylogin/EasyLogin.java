@@ -354,7 +354,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			
 			pi.setPlayerstatus(Playerstatus.Loggedin);
 			if (Settings.useBungeeCoord == true){
-				System.out.println("akjnaklna");
 				database.updatePlayerStatus(pi.getAuth());
 				EasyLogin.callBungeeCoord(player, "#Playerlogin#"+player.getName().toLowerCase()+"#");
 			}
@@ -477,7 +476,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		// c) Registered -> UnloggedinUsers -> After Login in old groups
 		PlayerInfo pi = new PlayerInfo(lcName, playerAuth, player.getLocation()); // TODO: Already logged in?
 		
-		// check if player is already logged in via bungeecoord
+		// check if player is already logged in via bungeecoord		
 		if (Settings.useBungeeCoord == true && playerAuth.getStatus() == Playerstatus.Loggedin){
 			this.getLogger().info("Spieler "+ player.getName() + " ist bereits über Bungeecoord eingeloggt!");
 			pi.cancelTask();

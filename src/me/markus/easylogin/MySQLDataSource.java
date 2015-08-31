@@ -63,7 +63,7 @@ public class MySQLDataSource {
 				
 				Playerstatus playerstatus = Playerstatus.Offline;
 				try{
-					Playerstatus.valueOf(rs.getString(this.columnStatus));
+					playerstatus = Playerstatus.valueOf(rs.getString(this.columnStatus));
 				} catch (IllegalArgumentException e) {
 					playerstatus = Playerstatus.Offline;
 				} catch (NullPointerException e) {
