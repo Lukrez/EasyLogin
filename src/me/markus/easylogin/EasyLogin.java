@@ -439,6 +439,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerJoin(PlayerJoinEvent event) {
 		Player player = event.getPlayer();
+		EasyLogin.callBungeeCoord(player, "#Playerjoin#"+player.getName()+"#");
 		String lcName = EasyLogin.getlowerCasePlayerName(player);
 		if (player.isOp()) {
 			player.setOp(false);
