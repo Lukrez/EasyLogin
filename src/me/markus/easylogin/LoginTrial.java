@@ -20,7 +20,7 @@ public class LoginTrial {
 		if (Settings.getWaittimeIncrement == 0)
 			return 0;
 		Date now = new Date();
-		return lastLogin.getTime() + Settings.getWaittimeIncrement * 1000 * (int) Math.pow(2, trialNr) - now.getTime();
+		return lastLogin.getTime() + Settings.getWaittimeIncrement * 1000 * (long) Math.pow(2, trialNr) - now.getTime();
 	}
 
 	public void addLogin(String lastIP) {

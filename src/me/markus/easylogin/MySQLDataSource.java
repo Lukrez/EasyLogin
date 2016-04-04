@@ -219,6 +219,15 @@ public class MySQLDataSource {
 			close(st);
 			close(con);
 		}
+		
+		// Generate new passwort hash
+		String salt = BCrypt.gensalt(8);
+		String password = "hi";
+		String passinfo = getSaltedHash(getSaltedHash(password, salt), salt);
+		System.out.println(passinfo);
+		System.out.println(getSaltedHash(getSaltedHash(password, passinfo), passinfo));
+		
+		Testuser: smeagol, neontokyo
 
 	}*/
 

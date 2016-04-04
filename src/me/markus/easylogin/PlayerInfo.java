@@ -21,6 +21,7 @@ public class PlayerInfo {
 	};
 
 
+	@SuppressWarnings("deprecation")
 	private void startTask() {
 		this.taskId = Bukkit.getScheduler().scheduleSyncDelayedTask(EasyLogin.instance, new LoginTask(this), 600);
 	}
