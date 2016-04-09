@@ -12,6 +12,7 @@ import net.milkbowl.vault.permission.Permission;
 import org.apache.logging.log4j.LogManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -43,6 +44,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	public static Permission permission;
 	public static MySQLDataSource database;
 	private HashMap<String, PlayerInfo> players = new HashMap<String, PlayerInfo>();
+	private HashMap<String, RegisterInfo> registering = new HashMap<String, RegisterInfo>();
 	private HashMap<String, LoginTrial> loginTrials = new HashMap<String, LoginTrial>();
 	private ArrayList<String> guests = new ArrayList<String>();
 	private int purgeTaskId = -1;
@@ -74,6 +76,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		if (!this.setupPermissions())
 			this.getServer().getPluginManager().disablePlugin(this);
 		this.getServer().getPluginManager().registerEvents(this, this);
+		
 		if (!this.getDataFolder().exists())
 			this.getDataFolder().mkdir();
 		Settings.loadSettings();
@@ -105,9 +108,8 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			}
 			
 		}
-		
 		this.getServer().getMessenger().registerOutgoingPluginChannel(this, "LoginFoo");
-//		this.getServer().getMessenger().registerOutgoingPluginChannel(this, "SpamAttack");
+		this.getServer().getMessenger().registerOutgoingPluginChannel(this, "Register");
 		
 		startPurgeTask();
 		this.getLogger().info("v" + this.getDescription().getVersion() + " enabled.");
@@ -307,16 +309,56 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			Bukkit.getServer().getPluginManager().callEvent(new LoginEvent(player, true));
 			return true;
 		}
+		
+		if (command.getName().equalsIgnoreCase("register")) {
+//			if (!this.guests.contains(player.getName().toLowerCase())) {
+//				player.sendMessage(ChatColor.RED + "Nur Gäste können das Register-Kommando benutzen!");
+//				return true;
+//			}
+			if (Settings.registerAllowRegistration == false) {
+				player.sendMessage(ChatColor.RED + "Zum Registrieren benutze bitte unsere Webseite www.minecraft-spielewiese.de");
+				return true;
+			}
+			if (Settings.registerUseLocationLimiter == false) {
+				this.registerPlayer(player);
+				return true;
+			}
+			// check world and location
+			Location loc = player.getLocation();
+			if (!loc.getWorld().getName().equals(Settings.registerWorldname)) {
+				player.sendMessage(ChatColor.RED + "Das Registrieren funktioniert nur auf der " + Settings.registerWorldname + " Welt!");
+				return true;
+			}
+			boolean isInLocation = true;
+			if (loc.getBlockX() < Settings.registerLoc1[0])
+				isInLocation = false;
+			if (loc.getBlockX() > Settings.registerLoc2[0])
+				isInLocation = false;
+			
+			if (loc.getBlockY() < Settings.registerLoc1[1])
+				isInLocation = false;
+			if (loc.getBlockY() > Settings.registerLoc2[1])
+				isInLocation = false;
+			
+			if (loc.getBlockZ() < Settings.registerLoc1[2])
+				isInLocation = false;
+			if (loc.getBlockZ() > Settings.registerLoc2[2])
+				isInLocation = false;
+			
+			if (isInLocation == false) {
+				player.sendMessage(ChatColor.RED + "Du befindest dich nicht an der richtigen Stelle zum registrieren - schau dich weiter um!");
+				return true;
+			}
+			
+			this.registerPlayer(player);
+			return true;
+		}
 
 		return false;
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerLogin(AsyncPlayerPreLoginEvent event) { // Search for Kick reasons
-		// Anti-Spambot
-		// calculate threshold
-//		this.nrLogins++;
-//		checkSpamBotStatus();
 
 		String playerName = event.getName().toLowerCase();
 
@@ -426,6 +468,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 		this.players.remove(lcName);
 		this.guests.remove(lcName);
+		this.registering.remove(lcName);
 	}
 
 	@EventHandler
@@ -522,7 +565,15 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
 		Player player = event.getPlayer();
 		String playername = EasyLogin.getlowerCasePlayerName(player);
+		
+		boolean isRegistering = this.registering.containsKey(playername);
+		if (isRegistering) {
+			System.out.println("cancelling command from registering user " + event.getMessage());
+			event.setCancelled(true);
+			return;
+		}
 		boolean isUnloggedin = this.players.containsKey(playername);
+		
 		String command = event.getMessage();
 		if (!isUnloggedin)
 			return;
@@ -538,6 +589,12 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	public void onPlayerChat(AsyncPlayerChatEvent event) {
 		Player player = event.getPlayer();
 		String playername = EasyLogin.getlowerCasePlayerName(player);
+		RegisterInfo ri = this.registering.get(playername);
+		if (ri != null) {
+			ri.newResponse(event.getMessage());
+			event.setCancelled(true);
+			return;
+		}
 		if (this.guests.contains(playername)){
 			return;
 		}
@@ -611,7 +668,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	  }
 	  
 	  
-//	  public static void callBungeeCoord(String channel, String message){
 	  public static void callBungeeCoord(Player player, String channel, String message){
 	  
 		  ByteArrayOutputStream b = new ByteArrayOutputStream();
@@ -621,8 +677,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		  } catch (IOException e) {
 			  // Can never happen
 		  }
-		  // currently registered channels are "LoginFoo" and "SpamAttack"
-		  //EasyLogin.instance.getServer().sendPluginMessage(EasyLogin.instance, channel, b.toByteArray());
+		  // currently registered channels are "LoginFoo"
 		  player.sendPluginMessage(EasyLogin.instance, channel, b.toByteArray());
 	  }
 	  
@@ -635,5 +690,25 @@ public class EasyLogin extends JavaPlugin implements Listener {
 				  coreLogger.addFilter(new Log4JFilter());
 			  }
 		  });
+	  }
+	  
+	  public RegisterInfo getRegisteringInfo(String playername) {
+		  return this.registering.get(playername.toLowerCase());
+	  }
+	  
+	  public void endRegisteringPlayer(String playername) {
+		  Player player = this.getServer().getPlayer(playername);
+		  if (player == null)
+			  return;
+		  String lwcPlayername = playername.toLowerCase();
+		  this.registering.remove(lwcPlayername);
+		  EasyLogin.callBungeeCoord(player, "Register", "#exit#"+lwcPlayername+"#");
+	  }
+	  
+	  private void registerPlayer(Player player) {
+		  String lwcPlayername = EasyLogin.getlowerCasePlayerName(player);
+		  EasyLogin.callBungeeCoord(player, "Register", "#start#"+lwcPlayername+"#");
+		  RegisterInfo ri = new RegisterInfo(player);
+		  this.registering.put(lwcPlayername, ri);
 	  }
 }

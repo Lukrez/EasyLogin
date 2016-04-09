@@ -30,6 +30,11 @@ public class Settings {
 	public static int getPurgeThreshold;
 	public static boolean useBungeeCoord;
 	public static boolean isConsoleFilterEnabled;
+	public static boolean registerAllowRegistration;
+	public static boolean registerUseLocationLimiter;
+	public static String registerWorldname;
+	public static int[] registerLoc1;
+	public static int[] registerLoc2;
 
 	public static void loadSettings() {
 
@@ -55,6 +60,11 @@ public class Settings {
 		getPurgeThreshold = 3;
 		isWhitelisted = false;		
 		isConsoleFilterEnabled = true;
+		registerAllowRegistration = false;
+		registerUseLocationLimiter = false;
+		registerWorldname = "world";
+		registerLoc1 = new int[] {0,0,0};
+		registerLoc2 = new int[] {0,0,0};
 
 		File file = new File(EasyLogin.instance.getDataFolder(), "config.yml");
 		if (!file.exists())
@@ -90,13 +100,47 @@ public class Settings {
 			
 			isWhitelisted = yaml.getBoolean("whitelist");
 			
+			registerAllowRegistration = yaml.getBoolean("register.allowRegistration");
+			registerUseLocationLimiter = yaml.getBoolean("register.useLocation");
+			registerWorldname = yaml.getString("register.world");
+			int l_x1 = yaml.getInt("register.x1");
+			int l_y1 = yaml.getInt("register.y1");
+			int l_z1 = yaml.getInt("register.z1");
+			int l_x2 = yaml.getInt("register.x2");
+			int l_y2 = yaml.getInt("register.y2");
+			int l_z2 = yaml.getInt("register.z2");
+
 			
+			int x1 = l_x1;
+			int x2 = l_x2;
+			if (l_x1 > l_x2){
+				x1 = l_x2;
+				x2 = l_x1;
+			}
+			
+			int y1 = l_y1;
+			int y2 = l_y2;
+			if (l_y1 > l_y2){
+				y1 = l_y2;
+				y2 = l_y1;
+			}
+			
+			int z1 = l_z1;
+			int z2 = l_z2;
+			if (l_z1 > l_z2){
+				z1 = l_z2;
+				z2 = l_z1;
+			}
+			registerLoc1 = new int[] {x1,y1,z1};
+			registerLoc2 = new int[] {x2,y2,z2};
 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (InvalidConfigurationException e) {
+			e.printStackTrace();
+		} catch (IndexOutOfBoundsException e) {
 			e.printStackTrace();
 		}
 		saveSettings();
@@ -133,6 +177,15 @@ public class Settings {
 		
 		yaml.set("whitelist", isWhitelisted);
 		
+		yaml.set("register.allowRegistration", registerAllowRegistration);
+		yaml.set("register.useLocation", registerUseLocationLimiter);
+		yaml.set("register.world", registerWorldname);
+		yaml.set("register.x1", registerLoc1[0]);
+		yaml.set("register.y1", registerLoc1[1]);
+		yaml.set("register.z1", registerLoc1[2]);
+		yaml.set("register.x2", registerLoc2[0]);
+		yaml.set("register.y2", registerLoc2[1]);
+		yaml.set("register.z2", registerLoc2[2]);
 		
 
 		try {

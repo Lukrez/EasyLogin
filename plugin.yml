@@ -1,9 +1,10 @@
 name: EasyLogin
 main: me.markus.easylogin.EasyLogin
-version: 0.0.20
+version: 0.0.21
 depends: [Vault]
 
 commands:
   login:
     aliases: [l]
   easylogin:
+  register:
