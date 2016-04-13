@@ -16,6 +16,8 @@ import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.conversations.ConversationAbandonedEvent;
+import org.bukkit.conversations.ConversationAbandonedListener;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -44,15 +46,18 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	public static Permission permission;
 	public static MySQLDataSource database;
 	private HashMap<String, PlayerInfo> players = new HashMap<String, PlayerInfo>();
-	private HashMap<String, RegisterInfo> registering = new HashMap<String, RegisterInfo>();
 	private HashMap<String, LoginTrial> loginTrials = new HashMap<String, LoginTrial>();
+	private HashMap<String, RegistrationConversation> registering = new HashMap<String, RegistrationConversation>();
 	private ArrayList<String> guests = new ArrayList<String>();
 	private int purgeTaskId = -1;
 	private long nexPurge;
 	private String whitelistReason = "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!";
 
+	
+	
 	@Override
 	public void onDisable() {
+		
 		if (database != null)
 			database.close();
 		//set groups of all inloggedinusers and kick them
@@ -468,7 +473,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 
 		this.players.remove(lcName);
 		this.guests.remove(lcName);
-		this.registering.remove(lcName);
 	}
 
 	@EventHandler
@@ -566,12 +570,11 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		Player player = event.getPlayer();
 		String playername = EasyLogin.getlowerCasePlayerName(player);
 		
-		boolean isRegistering = this.registering.containsKey(playername);
-		if (isRegistering) {
-			System.out.println("cancelling command from registering user " + event.getMessage());
+		if (this.registering.containsKey(playername)){
 			event.setCancelled(true);
 			return;
 		}
+		
 		boolean isUnloggedin = this.players.containsKey(playername);
 		
 		String command = event.getMessage();
@@ -589,12 +592,6 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	public void onPlayerChat(AsyncPlayerChatEvent event) {
 		Player player = event.getPlayer();
 		String playername = EasyLogin.getlowerCasePlayerName(player);
-		RegisterInfo ri = this.registering.get(playername);
-		if (ri != null) {
-			ri.newResponse(event.getMessage());
-			event.setCancelled(true);
-			return;
-		}
 		if (this.guests.contains(playername)){
 			return;
 		}
@@ -667,9 +664,9 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		  return player.getName().toLowerCase();
 	  }
 	  
-	  
 	  public static void callBungeeCoord(Player player, String channel, String message){
-	  
+		  if (!(EasyLogin.instance.getServer().getPluginManager().isPluginEnabled(EasyLogin.instance)))
+			  return;
 		  ByteArrayOutputStream b = new ByteArrayOutputStream();
 		  DataOutputStream out = new DataOutputStream(b);
 		  try {
@@ -691,24 +688,44 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			  }
 		  });
 	  }
-	  
-	  public RegisterInfo getRegisteringInfo(String playername) {
-		  return this.registering.get(playername.toLowerCase());
-	  }
-	  
-	  public void endRegisteringPlayer(String playername) {
-		  Player player = this.getServer().getPlayer(playername);
-		  if (player == null)
-			  return;
-		  String lwcPlayername = playername.toLowerCase();
-		  this.registering.remove(lwcPlayername);
-		  EasyLogin.callBungeeCoord(player, "Register", "#exit#"+lwcPlayername+"#");
-	  }
-	  
+  
 	  private void registerPlayer(Player player) {
 		  String lwcPlayername = EasyLogin.getlowerCasePlayerName(player);
 		  EasyLogin.callBungeeCoord(player, "Register", "#start#"+lwcPlayername+"#");
-		  RegisterInfo ri = new RegisterInfo(player);
-		  this.registering.put(lwcPlayername, ri);
+		  if (registering.containsKey(lwcPlayername))
+			  return;
+		  
+		  RegistrationConversation c = new RegistrationConversation(this, player, "stop", new Registration(player));
+		  c.getConversation().setLocalEchoEnabled(false);
+		  c.getConversation().begin();
+		  registering.put(lwcPlayername, c);
 	  }
+	  
+	  public void removeRegisteringPlayer(Player player) {
+		  String lwcPlayername = player.getName().toLowerCase();
+		  EasyLogin.callBungeeCoord(player, "Register", "#exit#"+lwcPlayername+"#");
+		  this.registering.remove(lwcPlayername);
+	  }
+}
+
+class Registration implements ConversationAbandonedListener {
+	
+	private Player player;
+	public Registration(Player player) {
+		this.player = player;
+	}
+
+    @Override
+    public void conversationAbandoned(ConversationAbandonedEvent event) {
+
+    	EasyLogin.instance.removeRegisteringPlayer(player);
+    	if (event.gracefulExit()) {
+    		EasyLogin.instance.getServer().getLogger().info("Registering finished");
+    	} else {
+    		event.getContext().getForWhom().sendRawMessage(ChatColor.RED + "Registrierung abgebrochen!");
+    		EasyLogin.instance.getServer().getLogger().info("Registering aborted");
+    	}
+		
+    }
+
 }

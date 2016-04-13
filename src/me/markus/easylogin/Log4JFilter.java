@@ -29,8 +29,12 @@ public class Log4JFilter implements org.apache.logging.log4j.core.Filter {
     @Override
     public Result filter(LogEvent record) {
     	
-        if (record == null || record.getMessage() == null)
+        if (record == null)
+        	return Result.NEUTRAL;
+        if (record.getMessage() == null)
             return Result.NEUTRAL;
+        if (record.getMessage().getFormattedMessage() == null)
+        	return Result.NEUTRAL;
         
         String logM = record.getMessage().getFormattedMessage().toLowerCase();        
         return this.checkString(logM);          
