@@ -316,10 +316,10 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		}
 		
 		if (command.getName().equalsIgnoreCase("register")) {
-//			if (!this.guests.contains(player.getName().toLowerCase())) {
-//				player.sendMessage(ChatColor.RED + "Nur Gäste können das Register-Kommando benutzen!");
-//				return true;
-//			}
+			if (!this.guests.contains(player.getName().toLowerCase())) {
+				player.sendMessage(ChatColor.RED + "Nur Gäste können das Register-Kommando benutzen!");
+				return true;
+			}
 			if (Settings.registerAllowRegistration == false) {
 				player.sendMessage(ChatColor.RED + "Zum Registrieren benutze bitte unsere Webseite www.minecraft-spielewiese.de");
 				return true;
@@ -737,9 +737,24 @@ class Registration implements ConversationAbandonedListener {
     		if (!isValidString(email))
     			return;
     		
-    		EasyLogin.database.registerUser(player.getName(), password, email);
-    		EasyLogin.instance.onPlayerJoin(player);
-    		EasyLogin.callBungeeCoord(player, "Register", "#login#"+player.getName().toLowerCase()+"#");
+    		RegistrationResult res = EasyLogin.database.registerUser(player.getName(), password, email);
+    		switch (res) {
+    		case SUCCESS:
+    			EasyLogin.instance.onPlayerJoin(player);
+        		EasyLogin.callBungeeCoord(player, "Register", "#login#"+player.getName().toLowerCase()+"#");
+        		player.sendMessage(ChatColor.GREEN + "Die Registrierung ist abgeschlossen, logge dich bitte jetzt mit deinem Passwort an:");
+        		return;
+    		case USER_ALREADY_REGISTERED:
+    			player.sendMessage(ChatColor.RED + "Du bist bereits registriert!");
+    			return;
+    		case FAILED:
+    			player.sendMessage(ChatColor.RED + "Die Registrierung ist fehlgeschlagen, versuche es vielleicht später nocheinmal!");
+    			return;
+    		case UNKNOWN_ERROR:
+    			player.sendMessage(ChatColor.RED + "Ein unbekannter Fehler ist aufgetreten. Bitte wende dich an einen Admin!");
+    			return;
+    		}
+    		
     	} else {
     		event.getContext().getForWhom().sendRawMessage(ChatColor.RED + "Registrierung abgebrochen!");
     		EasyLogin.instance.getServer().getLogger().info("Registering aborted");
