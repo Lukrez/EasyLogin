@@ -404,8 +404,12 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST)
-	public void onPlayerJoin(PlayerJoinEvent event) {
+	public void onPlayerJoinEvent(PlayerJoinEvent event) {
 		Player player = event.getPlayer();
+		this.onPlayerJoin(player);
+	}	
+	
+	public void onPlayerJoin(Player player) {
 		EasyLogin.callBungeeCoord(player, "LoginFoo", "#Playerjoin#"+player.getName()+"#");
 		String lcName = EasyLogin.getlowerCasePlayerName(player);
 		if (player.isOp()) {
@@ -691,10 +695,9 @@ public class EasyLogin extends JavaPlugin implements Listener {
   
 	  private void registerPlayer(Player player) {
 		  String lwcPlayername = EasyLogin.getlowerCasePlayerName(player);
-		  EasyLogin.callBungeeCoord(player, "Register", "#start#"+lwcPlayername+"#");
 		  if (registering.containsKey(lwcPlayername))
 			  return;
-		  
+		  EasyLogin.callBungeeCoord(player, "Register", "#start#"+lwcPlayername+"#");
 		  RegistrationConversation c = new RegistrationConversation(this, player, "stop", new Registration(player));
 		  c.getConversation().setLocalEchoEnabled(false);
 		  c.getConversation().begin();
@@ -714,6 +717,10 @@ class Registration implements ConversationAbandonedListener {
 	public Registration(Player player) {
 		this.player = player;
 	}
+	
+	private boolean isValidString(String s) {
+        return (s != null) && (!s.isEmpty());    
+    }
 
     @Override
     public void conversationAbandoned(ConversationAbandonedEvent event) {
@@ -721,6 +728,18 @@ class Registration implements ConversationAbandonedListener {
     	EasyLogin.instance.removeRegisteringPlayer(player);
     	if (event.gracefulExit()) {
     		EasyLogin.instance.getServer().getLogger().info("Registering finished");
+    		
+    		String password = (String)event.getContext().getSessionData("RegistrationConversation.SESSION_PASSWORD");
+    		String email = (String)event.getContext().getSessionData("RegistrationConversation.SESSION_EMAIL");
+    		
+    		if (!isValidString(password))
+    			return;
+    		if (!isValidString(email))
+    			return;
+    		
+    		EasyLogin.database.registerUser(player.getName(), password, email);
+    		EasyLogin.instance.onPlayerJoin(player);
+    		EasyLogin.callBungeeCoord(player, "Register", "#login#"+player.getName().toLowerCase()+"#");
     	} else {
     		event.getContext().getForWhom().sendRawMessage(ChatColor.RED + "Registrierung abgebrochen!");
     		EasyLogin.instance.getServer().getLogger().info("Registering aborted");
