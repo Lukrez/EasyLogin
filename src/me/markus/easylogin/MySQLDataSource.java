@@ -2,6 +2,7 @@ package me.markus.easylogin;
 
 import com.mysql.jdbc.jdbc2.optional.MysqlConnectionPoolDataSource;
 
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -22,6 +23,21 @@ public class MySQLDataSource {
 	private String columnPassword;
 	private String columnStatus;
 	private MiniConnectionPoolManager conPool;
+	
+	// SQL statements
+	private static final String INSERT_INTO = "INSERT INTO ";
+	private static final String SELECT = "SELECT ";
+	private static final String FROM = " FROM ";
+	private static final String WHERE = " WHERE ";
+
+	private static final String USER_TABLE = "wcf1_user";
+	private static final String USER_TABLE_USERID = "userID";
+	private static final String USER_TABLE_USERNAME = "username";
+	private static final String USER_STORAGE_TABLE = "wcf1_user_storage";
+	private static final String USER_TO_GROUP_TABLE = "wcf1_user_to_group";
+	private static final String USER_TO_LANGUAGE_TABLE = "wcf1_user_to_language";
+	private static final String USER_OPTION_VALUE_TABLE = "wcf1_user_option_value";
+	private static final String USER_NOTIFICATION_EVENT_TO_USER_TABLE = "wcf1_user_notification_event_to_user";
 
 	public MySQLDataSource() throws ClassNotFoundException, SQLException {
 		this.host = Settings.getMySQLHost;
@@ -205,30 +221,187 @@ public class MySQLDataSource {
 		conPool = new MiniConnectionPoolManager(dataSource, 10);
 		EasyLogin.instance.getLogger().info("ConnectionPool was unavailable... Reconnected!");
 	}
+	
+	public synchronized RegistrationResult registerUser(String username, String password, String email) {
+	    Connection con = null;
+	    try {
+	        con = makeSureConnectionIsReady();
 
-	/*public synchronized void registerUser(String username, String passwordHash, String salt) throws SQLException {
-		Connection con = null;
-		Statement st = null;
-		try {
-			con = makeSureConnectionIsReady();
-			st = con.createStatement();
-			String state = "INSERT INTO " + tableName + " (" + columnName + "," + columnPassword + "," + columnSalt + ")" + " VALUES (" + "'" + username + "','" + passwordHash + "','" + salt + "');";
-			System.out.println(state);
-			st.executeUpdate(state);
-		} finally {
-			close(st);
-			close(con);
-		}
-		
-		// Generate new passwort hash
-		String salt = BCrypt.gensalt(8);
-		String password = "hi";
-		String passinfo = getSaltedHash(getSaltedHash(password, salt), salt);
-		System.out.println(passinfo);
-		System.out.println(getSaltedHash(getSaltedHash(password, passinfo), passinfo));
-		
-		Testuser: smeagol, neontokyo
+	        // Test if user exists (this should not happen, but safty first)    
+	        if (this.isUserRegistered(con, username))
+	            return RegistrationResult.USER_ALREADY_REGISTERED;    
+	    
+	        // UPDATE wcf1_user TABLE
+	        this.addUserToUserTable(con, username, password, email);
+	        
+	        int userID = getUserIDFromUser(con, username);        
 
-	}*/
+	        this.initDatabaseForUser(con, userID);
+	        
+	    }
+	    catch (SQLException e) {
+	        e.printStackTrace();
+	        return RegistrationResult.FAILED;
+	    }
+	    catch (Exception e) {
+	        e.printStackTrace();
+	        return RegistrationResult.UNKNOWN_ERROR;
+	    } finally {
+	        close(con);
+	    }
+	    
+	    return RegistrationResult.SUCCESS;
+	}
+
+
+
+	////////////////////////////////////////
+	// SQL
+	////////////////////////////////////////
+
+	private synchronized void addUserToUserTable(Connection con, String username, String password, String email) throws SQLException {
+
+	    String accessToken = this.generateAccesstoken();
+	    int activationCode = this.generateActivationCode();
+	    String passwordHash = generatePasswordHash(password);
+	    long now = System.currentTimeMillis() / 1000l;
+
+	    PreparedStatement ps = con.prepareStatement(
+	        INSERT_INTO + USER_TABLE + "(`username`, `email`, `password`, `accessToken`, `languageID`, "
+	        		+ "`registrationDate`, `styleID`, `banned`, `banReason`, `activationCode`, "
+	        		+ "`lastLostPasswordRequestTime`, `lostPasswordKey`, `lastUsernameChange`, `newEmail`, `oldUsername`, "
+	        		+ "`quitStarted`, `reactivationCode`, `registrationIpAddress`, `avatarID`, `disableAvatar`, "
+	        		+ "`disableAvatarReason`, `enableGravatar`, `signature`, `signatureEnableBBCodes`, `signatureEnableHtml`, "
+	        		+ "`signatureEnableSmilies`, `disableSignature`, `disableSignatureReason`, `lastActivityTime`, `profileHits`, "
+	        		+ "`rankID`, `userTitle`, `userOnlineGroupID`, `activityPoints`, `notificationMailToken`, "
+	        		+ "`authData`, `likesReceived`, `wbbPosts`, `disclaimerAccepted`, `todos`, "
+	        		+ "`loginStatus`, `playtime`) "
+	        		+ "VALUES "
+	        		+ "( ?, ?, ?, ?, '1', "
+	        		+ "?, '0', '0', NULL, ?, "
+	        		+ "'0', '', '0', '', '', "
+	        		+ "'0', '0', '::ffff:5f76:d42c', NULL, '0', "
+	        		+ "'', '0', '', '1', '0', "
+	        		+ "'1', '0', '', ?, '7', "
+	        		+ "NULL, '', '1', '0', '', "
+	        		+ "'', '0', '0', '1', '0', "
+	        		+ "'Offline', '0' );");
+	        
+	    ps.setString(1, username);
+	    ps.setString(2, email);
+	    ps.setString(3, passwordHash);
+	    ps.setString(4, accessToken);
+	    ps.setLong(5, now);    
+	    ps.setInt(6, activationCode);
+	    ps.setLong(7, now);
+	    
+	    ps.executeUpdate();
+	    close(ps);
+	}
+
+
+
+	private synchronized boolean isUserRegistered(Connection con, String username) throws SQLException {
+	    return this.getUserIDFromUser(con, username) != -1;
+	}
+
+	private synchronized int getUserIDFromUser(Connection con, String username) throws SQLException {
+	    PreparedStatement pst = null;
+	    ResultSet rs = null;
+	    int result = -1;
+	    pst = con.prepareStatement(SELECT + USER_TABLE_USERID + FROM + USER_TABLE + WHERE + "lower(" + USER_TABLE_USERNAME + ")=?;");
+	    pst.setString(1, username.toLowerCase());
+	    rs = pst.executeQuery();   
+	    if (rs.next())             
+	        result = rs.getInt(USER_TABLE_USERID);
+	    close(pst);
+	    close(rs);
+	    return result;
+	}
+
+	public synchronized void initDatabaseForUser(Connection con, int userID) throws SQLException {
+	    Statement stmt = con.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+	    
+	    // UPDATE wcf1_user_to_group
+	    stmt.addBatch(INSERT_INTO + USER_TO_GROUP_TABLE + " (userID, groupID) VALUES ("+userID+", 1);");
+	    stmt.addBatch(INSERT_INTO + USER_TO_GROUP_TABLE + " (userID, groupID) VALUES ("+userID+", 2);");       
+	    
+	    // UPDATE wcf1_user_to_language
+	    stmt.addBatch(INSERT_INTO + USER_TO_LANGUAGE_TABLE + " (userID, languageID) VALUES (" + userID + ",1);" );
+	        
+	    // UPDATE wcf1_user_option_value
+	    stmt.addBatch(INSERT_INTO + USER_OPTION_VALUE_TABLE+" (userID, userOption2, userOption3, userOption16, userOption19, "
+	            + "userOption20, userOption21, userOption22, userOption28, userOption34, userOption35) VALUES ("
+	            + userID +", '0000-00-00', '1', '1', '3', '1', '1', '1', '1', '0', '1');");
+	        
+	    // UPDATE wcf1_user_notification_event_to_user
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",2,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",3,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",4,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",7,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",8,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",9,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",10,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",11,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",12,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",13,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",14,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",17,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",18,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",19,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",20,'none');");
+	    stmt.addBatch(INSERT_INTO + USER_NOTIFICATION_EVENT_TO_USER_TABLE + " (userID, eventID, mailNotificationType) VALUES ("+userID+",24,'none');");
+	    
+	    // UPDATE wcf1_user_storage
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'collapsedContent-2', 'a:0:{}');");
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'collapsedContent-77', 'a:0:{}');");
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'followingUserIDs', 'a:0:{}');");
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'languageIDs', 'a:1:{i:0;s:1:\"1\";}');");
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'tourCache', 'a:3:{s:14:\"availableTours\";a:0:{}s:10:\"takenTours\";a:0:{}s:12:\"lastTourTime\";i:0;}');");
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'trackedUserVisits', 'a:0:{}');");
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'unreadConversationCount', 's:1:\"0\";');");
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'userNotificationCount', 's:1:\"0\";');");
+	    stmt.addBatch(INSERT_INTO + USER_STORAGE_TABLE+" (userID, field, fieldValue) VALUES ("+userID+", 'wbbBoardPermissions', 'a:2:{s:3:\"mod\";a:0:{}s:4:\"user\";a:0:{}}');");
+	    
+	    // commit
+	    stmt.executeBatch();
+	    con.commit();
+	    close(stmt);
+	}
+
+	    
+	////////////////////////////////////////
+	// GENERATORS
+	////////////////////////////////////////
+
+	private int generateActivationCode() {
+	    SecureRandom random = new SecureRandom();
+	    int c = random.nextInt(900000000) + 100000000;
+	    return c;
+	}
+
+	private String generateAccesstoken() {
+	    //40 chars  320bit hexadezimal
+	    SecureRandom rng = new SecureRandom();
+	    int length = 40;
+	    String characters = "0123456789abcdef";
+	    char[] text = new char[length];
+	    for (int i = 0; i < length; i++) {
+	        text[i] = characters.charAt(rng.nextInt(characters.length()));
+	    }
+	    return new String(text);
+	}
+
+	private String generatePasswordHash(String password) {
+	    String salt = BCrypt.gensalt(8);
+	    String passinfo = getSaltedHash(getSaltedHash(password, salt), salt);
+	    return passinfo;
+	}
+	
+	private static String getSaltedHash(String password, String salt) {		
+		return BCrypt.hashpw(password, salt);
+	}
+
+
 
 }
