@@ -26,7 +26,7 @@ public class RegistrationConversation {
     private static final String REGISTRATION_CONFIRM_PW_FAILED = ChatColor.RED + "Die eingegebenen Passwörter sind nicht identisch!";
     private static final String REGISTRATION_ENTER_MAIL = ChatColor.GREEN + "Bitte gib eine " + ChatColor.GOLD + "Email-Addresse" + ChatColor.GREEN + " ein:";
     private static final String REGISTRATION_ENTER_MAIL_FAILED = ChatColor.RED + "Bitte gib eine gültige Email-Addresse ein!";
-    private static final String REGISTRATION_COMPLETE = ChatColor.GOLD + "Registrierung abgeschlossen!";
+    private static final String REGISTRATION_COMPLETE = ChatColor.GOLD + "Dein Nutzeraccount wird angelegt - Bitte warten!";
     
     public static final String SESSION_PASSWORD = "password";
     public static final String SESSION_EMAIL = "email";

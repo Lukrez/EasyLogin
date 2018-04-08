@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import net.milkbowl.vault.permission.Permission;
 
@@ -48,7 +49,7 @@ public class EasyLogin extends JavaPlugin implements Listener {
 	private HashMap<String, PlayerInfo> players = new HashMap<String, PlayerInfo>();
 	private HashMap<String, LoginTrial> loginTrials = new HashMap<String, LoginTrial>();
 	private HashMap<String, RegistrationConversation> registering = new HashMap<String, RegistrationConversation>();
-	private ArrayList<String> guests = new ArrayList<String>();
+	private HashSet<String> guests = new HashSet<String>();
 	private int purgeTaskId = -1;
 	private long nexPurge;
 	private String whitelistReason = "Der Server ist momentan wegen Wartungsarbeiten im Whitelist-Modus. Vielleicht gibts im Forum nähere Infos!";
@@ -316,12 +317,13 @@ public class EasyLogin extends JavaPlugin implements Listener {
 		}
 		
 		if (command.getName().equalsIgnoreCase("register")) {
-			if (!this.guests.contains(player.getName().toLowerCase())) {
-				player.sendMessage(ChatColor.RED + "Nur Gäste können das Register-Kommando benutzen!");
-				return true;
-			}
+
 			if (Settings.registerAllowRegistration == false) {
 				player.sendMessage(ChatColor.RED + "Zum Registrieren benutze bitte unsere Webseite www.minecraft-spielewiese.de");
+				return true;
+			}
+			if (!this.guests.contains(player.getName().toLowerCase())) {
+				player.sendMessage(ChatColor.RED + "Nur Gäste können das Register-Kommando benutzen!");
 				return true;
 			}
 			if (Settings.registerUseLocationLimiter == false) {
@@ -429,21 +431,19 @@ public class EasyLogin extends JavaPlugin implements Listener {
 			player.sendMessage(ChatColor.GREEN + "Willkommen auf dem Minecraft-Spielewiese Server!");
 			return;
 		}
-		
+		// remove player from guest list
+		this.guests.remove(lcName);
 		boolean isNewTraveller = true;
 		for (String group : permission.getPlayerGroups(player)) {
 			if (!group.equals("Guest")) {
 				isNewTraveller = false;
 				break;
 			}
-
 		}
 		if (isNewTraveller) {
-			permission.playerAddGroup(null,player, "Traveller");
+			permission.playerAddGroup(null, player, "Traveller");
 			permission.playerRemoveGroup(null,player, "Guest");
 		}
-		
-		
 
 		// c) Registered -> UnloggedinUsers -> After Login in old groups
 		PlayerInfo pi = new PlayerInfo(lcName, playerAuth, player.getLocation()); // TODO: Already logged in?
@@ -729,8 +729,8 @@ class Registration implements ConversationAbandonedListener {
     	if (event.gracefulExit()) {
     		EasyLogin.instance.getServer().getLogger().info("Registering finished");
     		
-    		String password = (String)event.getContext().getSessionData("RegistrationConversation.SESSION_PASSWORD");
-    		String email = (String)event.getContext().getSessionData("RegistrationConversation.SESSION_EMAIL");
+    		String password = (String)event.getContext().getSessionData(RegistrationConversation.SESSION_PASSWORD);
+    		String email = (String)event.getContext().getSessionData(RegistrationConversation.SESSION_EMAIL);
     		
     		if (!isValidString(password))
     			return;
@@ -738,21 +738,20 @@ class Registration implements ConversationAbandonedListener {
     			return;
     		
     		RegistrationResult res = EasyLogin.database.registerUser(player.getName(), password, email);
-    		switch (res) {
-    		case SUCCESS:
+    		if (res ==  RegistrationResult.SUCCESS) {
     			EasyLogin.instance.onPlayerJoin(player);
         		EasyLogin.callBungeeCoord(player, "Register", "#login#"+player.getName().toLowerCase()+"#");
-        		player.sendMessage(ChatColor.GREEN + "Die Registrierung ist abgeschlossen, logge dich bitte jetzt mit deinem Passwort an:");
-        		return;
-    		case USER_ALREADY_REGISTERED:
+        		player.sendMessage(ChatColor.GREEN + "Registrierung abgeschlossen!");
+        		player.sendMessage(ChatColor.GREEN + "Bitte logge dich bitte jetzt mit deinem Passwort an:");
+        		
+    		} else if (res ==  RegistrationResult.USER_ALREADY_REGISTERED) {
     			player.sendMessage(ChatColor.RED + "Du bist bereits registriert!");
-    			return;
-    		case FAILED:
+    			
+    		} else if (res ==  RegistrationResult. FAILED) {
     			player.sendMessage(ChatColor.RED + "Die Registrierung ist fehlgeschlagen, versuche es vielleicht später nocheinmal!");
-    			return;
-    		case UNKNOWN_ERROR:
+    		
+    		} else if (res ==  RegistrationResult.UNKNOWN_ERROR) {
     			player.sendMessage(ChatColor.RED + "Ein unbekannter Fehler ist aufgetreten. Bitte wende dich an einen Admin!");
-    			return;
     		}
     		
     	} else {

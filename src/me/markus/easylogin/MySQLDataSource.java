@@ -321,7 +321,8 @@ public class MySQLDataSource {
 
 	public synchronized void initDatabaseForUser(Connection con, int userID) throws SQLException {
 	    Statement stmt = con.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
-	    
+	    boolean currentAutocommit = con.getAutoCommit();
+	    con.setAutoCommit(false);
 	    // UPDATE wcf1_user_to_group
 	    stmt.addBatch(INSERT_INTO + USER_TO_GROUP_TABLE + " (userID, groupID) VALUES ("+userID+", 1);");
 	    stmt.addBatch(INSERT_INTO + USER_TO_GROUP_TABLE + " (userID, groupID) VALUES ("+userID+", 2);");       
@@ -367,6 +368,7 @@ public class MySQLDataSource {
 	    stmt.executeBatch();
 	    con.commit();
 	    close(stmt);
+	    con.setAutoCommit(currentAutocommit);
 	}
 
 	    
