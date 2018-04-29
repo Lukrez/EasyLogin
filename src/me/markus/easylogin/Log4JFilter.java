@@ -4,9 +4,10 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.filter.AbstractFilter;
 import org.apache.logging.log4j.message.Message;
 
-public class Log4JFilter implements org.apache.logging.log4j.core.Filter {
+public class Log4JFilter extends AbstractFilter {
 
     public Log4JFilter() {
     }
@@ -70,16 +71,6 @@ public class Log4JFilter implements org.apache.logging.log4j.core.Filter {
             return Result.NEUTRAL;
         String logM = message.getFormattedMessage().toLowerCase();
         return this.checkString(logM); 
-    }
-
-    @Override
-    public Result getOnMatch() {
-        return Result.NEUTRAL;
-    }
-
-    @Override
-    public Result getOnMismatch() {
-        return Result.NEUTRAL;
     }
 
 }
